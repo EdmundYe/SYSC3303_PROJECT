@@ -12,6 +12,6 @@ To run tests:
 Install JUnit5 dependencies and run each test
 
 Files to be submitted:
-
+Project code in src with tests 
 iteration1-class-diagram
 iteration1-sequence-diagram
