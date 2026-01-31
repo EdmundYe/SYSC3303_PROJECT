@@ -1,5 +1,4 @@
-Breakdown of responsibilities
-
+Breakdown of responsibilities:
 Derrick and Chenwei: Coding
 Asaad: UML / Sequence diagrams
 Edmund: Testing
