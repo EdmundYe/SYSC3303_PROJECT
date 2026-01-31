@@ -93,7 +93,7 @@ public class FireIncidentSubsystem implements Runnable {
      * @param line one line from the CSV file
      * @return FireEvent created from the CSV data
      */
-    private FireEvent parseCSVLine(String line) {
+    public FireEvent parseCSVLine(String line) {
         String[] parts = line.split(",");
 
         // Use current time

@@ -10,8 +10,8 @@ import java.util.Queue;
 
 public class SchedulerSubsystem implements Runnable {
 
-    private final MessageTransporter transport;
-    private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
+    private static MessageTransporter transport = null;
+    private static final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
 
     public SchedulerSubsystem(MessageTransporter transport) {
         this.transport = transport;
@@ -31,7 +31,7 @@ public class SchedulerSubsystem implements Runnable {
     }
 
     //based off the message type it will generate the specified message
-    private void handle(Message msg) {
+    static void handle(Message msg) {
         switch (msg.getType()) {
 
             case FIRE_EVENT -> {
