@@ -1,8 +1,6 @@
 package common;
 
-import java.io.Serializable;
-
-public enum FireEventType implements Serializable {
+public enum FireEventType {
     FIRE_DETECTED,
     DRONE_REQUEST
 }

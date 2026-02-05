@@ -1,8 +1,6 @@
 package common;
 
-import java.io.Serializable;
-
-public enum DroneState implements Serializable {
+public enum DroneState {
     IDLE,
     EN_ROUTE,
     DROPPING,
