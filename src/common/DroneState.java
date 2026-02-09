@@ -1,11 +1,26 @@
 package common;
 
-import java.io.Serializable;
+public enum DroneState {
+    IDLE {
+        @Override
+        public DroneState next() { return IDLE; }
+    },
+    EN_ROUTE {
+        @Override
+        public DroneState next() { return DROPPING; }
+    },
+    DROPPING {
+        @Override
+        public DroneState next() { return RETURNING; }
+    },
+    RETURNING {
+        @Override
+        public DroneState next() { return DONE; }
+    },
+    DONE {
+        @Override
+        public DroneState next() { return IDLE; }
+    };
 
-public enum DroneState implements Serializable {
-    IDLE,
-    EN_ROUTE,
-    DROPPING,
-    RETURNING,
-    DONE
+    public abstract DroneState next();
 }
