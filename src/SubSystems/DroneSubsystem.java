@@ -8,6 +8,8 @@ public class DroneSubsystem implements Runnable {
     // Unique identifier for this drone
     private final int droneId;
 
+    private DroneState state = DroneState.IDLE;
+
     // Transport mechanism used to communicate with the Scheduler
     private final MessageTransporter transport;
 
@@ -81,7 +83,7 @@ public class DroneSubsystem implements Runnable {
                 // After completing the task, report status back to Scheduler
                 DroneStatus status = new DroneStatus(
                         droneId,
-                        DroneState.DONE,
+                        state,
                         command.get_zone_id(),
                         null
                 );
@@ -107,17 +109,29 @@ public class DroneSubsystem implements Runnable {
      */
     private void executeCommand(DroneCommand command) throws InterruptedException {
 
+        transition(DroneEvent.TASK_RECEIVED);
         System.out.println("[DRONE " + droneId + "] Dispatching to zone "
                 + command.get_zone_id());
 
         Thread.sleep(2000); // simulate travel time
+
+        transition(DroneEvent.ARRIVED);
+
         System.out.println("[DRONE " + droneId + "] En route");
 
         Thread.sleep(2000); // simulate agent drop
         System.out.println("[DRONE " + droneId + "] Dropping agent ("
                 + command.getSeverity() + ")");
 
+        transition(DroneEvent.DROP_COMPLETE);
+
         Thread.sleep(2000); // simulate return to base
         System.out.println("[DRONE " + droneId + "] Returning to base");
+
+        transition(DroneEvent.RETURN_COMPLETE);
+    }
+
+    private void transition(DroneEvent event) {
+        state = state.next(event);
     }
 }
