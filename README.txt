@@ -1,7 +1,7 @@
 Breakdown of responsibilities:
-Derrick and Chenwei: Coding
-Asaad: UML / Sequence diagrams
-Edmund: Testing
+Derrick and Asaad: Coding
+Edmund: UML / Sequence diagrams
+ChenWei: Testing
 
 To run the project:
 Java JDK 25 must be installed
@@ -11,6 +11,6 @@ To run tests:
 Install JUnit5 dependencies and run each test
 
 Files to be submitted:
-Project code in src with tests 
+Project code in src with tests
 iteration1-class-diagram
 iteration1-sequence-diagram
