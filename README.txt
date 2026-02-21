@@ -39,6 +39,7 @@ Derrick:
 -implemented scheduler state machine
 
 Asaad:
+- implemented drone state machine
 
 Chenwei:
 
