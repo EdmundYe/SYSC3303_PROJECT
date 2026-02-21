@@ -30,3 +30,17 @@ iteration2-class-diagram — UML class diagram reflecting Iteration 2 changes
 iteration2-sequence-diagram — Sequence diagram showing scheduler-drone message passing
 drone-state-machine-diagram - State machine diagram showing drone states and event triggers
 scheduler-state-machine-diagram - State machine diagram showing scheduler states and event triggers
+
+Iteration progress:
+
+Iteration 2:
+Derrick:
+-implemented GUI to have 4 grids, keeps track of active fires and if drone is busy or not (currently tracked through SystemCounts class)
+-implemented scheduler state machine
+
+Asaad:
+
+Chenwei:
+
+Edmund:
+
