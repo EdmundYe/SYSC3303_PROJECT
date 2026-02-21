@@ -28,3 +28,5 @@ src/ — Main source code including scheduler, drone subsystem, and GUI componen
 src/tests/ — JUnit 5 test files
 iteration2-class-diagram — UML class diagram reflecting Iteration 2 changes
 iteration2-sequence-diagram — Sequence diagram showing scheduler-drone message passing
+drone-state-machine-diagram - State machine diagram showing drone states and event triggers
+scheduler-state-machine-diagram- State machine diagram showing scheduler states and event triggers
