@@ -1,47 +1,58 @@
+import common.SystemCounts;
+
 import javax.swing.*;
 import java.awt.*;
 
-/**
- * This GUI only provides the structure/layout.
- * No subsystem logic is connected at this stage.
- */
 public class GUI extends JFrame {
 
-    private JTextArea fireArea;
-    private JTextArea schedulerArea;
-    private JTextArea droneArea;
+    private final JLabel firesLabel = new JLabel("Active fires: 0");
+    private final JLabel dronesLabel = new JLabel("Drones busy: 0 / 0");
 
-    public GUI() {
-        setTitle("Firefighting Drone System - Iteration 1");
-        setSize(800, 600);
+    public GUI(SystemCounts counts) {
+        setTitle("Simple Grid GUI");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(520, 360);
+        setLocationRelativeTo(null);
 
-        setLayout(new GridLayout(3, 1));
+        JPanel root = new JPanel(new BorderLayout(10, 10));
+        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        fireArea = createPanel("Fire Incident Subsystem");
-        schedulerArea = createPanel("Scheduler");
-        droneArea = createPanel("Drone Subsystem");
+        // Top counter bar
+        JPanel top = new JPanel(new GridLayout(1, 2, 10, 0));
+        firesLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        dronesLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
+        top.add(firesLabel);
+        top.add(dronesLabel);
 
-        add(wrap(fireArea));
-        add(wrap(schedulerArea));
-        add(wrap(droneArea));
-    }
+        // 2x2 grid of zones
+        JPanel grid = new JPanel(new GridLayout(2, 2, 10, 10));
+        grid.add(makeZoneCell("Z(1)"));
+        grid.add(makeZoneCell("Z(2)"));
+        grid.add(makeZoneCell("Z(3)"));
+        grid.add(makeZoneCell("Z(4)"));
 
-    private JTextArea createPanel(String title) {
-        JTextArea area = new JTextArea();
-        area.setEditable(false);
-        area.setBorder(BorderFactory.createTitledBorder(title));
-        return area;
-    }
+        root.add(top, BorderLayout.NORTH);
+        root.add(grid, BorderLayout.CENTER);
+        setContentPane(root);
 
-    private JScrollPane wrap(JTextArea area) {
-        return new JScrollPane(area);
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            GUI gui = new GUI();
-            gui.setVisible(true);
+        // Poll counts periodically (simple + safe; does not intercept messages)
+        Timer t = new Timer(200, e -> {
+            firesLabel.setText("Active fires: " + counts.getActiveFires());
+            dronesLabel.setText("Drones busy: " + counts.getBusyDrones() + " / " + counts.getTotalDrones());
         });
+        t.start();
+    }
+
+    private static JPanel makeZoneCell(String label) {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(Color.WHITE);
+        p.setBorder(BorderFactory.createLineBorder(new Color(150, 110, 200), 2));
+
+        JLabel l = new JLabel(label);
+        l.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        l.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+
+        p.add(l, BorderLayout.NORTH);
+        return p;
     }
 }

@@ -28,8 +28,6 @@ public class FireIncidentSubsystem implements Runnable {
     // Path to the CSV input file
     private final String csvFile;
 
-    private int outstandingFires = 0;
-
     /**
      * Constructs a SubSystems.FireIncidentSubsystem.
      *
@@ -70,7 +68,6 @@ public class FireIncidentSubsystem implements Runnable {
                 // Send the event to the Scheduler subsystem
                 transport.send(SendAddress.SCHEDULER, msg);
                 System.out.println("[FIRE] Sent FIRE_EVENT to Scheduler");
-                outstandingFires++;
 
                 // Wait for a response from the Scheduler
                 // For now the content of the response is not important
@@ -78,7 +75,6 @@ public class FireIncidentSubsystem implements Runnable {
                         transport.receive(SendAddress.FIRE_INCIDENT);
 
                 System.out.println("[FIRE] Received response: " + response);
-                outstandingFires--;
             }
 
         } catch (Exception e) {

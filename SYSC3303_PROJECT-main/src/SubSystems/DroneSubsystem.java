@@ -16,9 +16,6 @@ public class DroneSubsystem implements Runnable {
     // Indicates whether the drone should attempt to receive a task
     private boolean waitingForTask = false;
 
-    //for GUI
-    private SystemCounts counts = null;
-
     /**
      * Constructs a SubSystems.DroneSubsystem.
      *
@@ -28,12 +25,6 @@ public class DroneSubsystem implements Runnable {
     public DroneSubsystem(int droneId, MessageTransporter transport) {
         this.droneId = droneId;
         this.transport = transport;
-    }
-
-    public DroneSubsystem(int droneId, MessageTransporter transport, SystemCounts counts) {
-        this.droneId = droneId;
-        this.transport = transport;
-        this.counts = counts;
     }
 
     /**
@@ -84,9 +75,6 @@ public class DroneSubsystem implements Runnable {
             case DRONE_TASK -> {
                 System.out.println("[DRONE " + droneId + "] Received task");
 
-                if (counts != null) { counts.incBusyDrones(); }
-
-
                 DroneCommand command = (DroneCommand) msg.getPayload();
 
                 // Simulate execution of the drone task
@@ -104,8 +92,6 @@ public class DroneSubsystem implements Runnable {
                 transport.send(SendAddress.SCHEDULER, doneMsg);
 
                 System.out.println("[DRONE " + droneId + "] Task completed and reported");
-
-                if (counts != null) { counts.decBusyDrones(); }
             }
 
             default -> {
