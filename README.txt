@@ -43,4 +43,5 @@ Asaad:
 Chenwei:
 
 Edmund:
-
+- Updated UML Class Diagrams by adding states and events
+- Created state machine diagrams for both scheduler and drone subsystems
