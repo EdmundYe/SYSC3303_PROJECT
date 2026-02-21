@@ -16,11 +16,19 @@ public class SchedulerSubsystem implements Runnable {
 
     private static FireEvent activeEvent = null;
 
+    //for gui
+    private SystemCounts counts = null;
+
     // Scheduler state machine
     private static SchedulerState schedulerState = SchedulerState.IDLE;
 
     public SchedulerSubsystem(MessageTransporter transport) {
         SchedulerSubsystem.transport = transport;
+    }
+
+    public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
+        SchedulerSubsystem.transport = transport;
+        this.counts = counts;
     }
 
     @Override
@@ -37,7 +45,7 @@ public class SchedulerSubsystem implements Runnable {
         System.out.println("[SCHEDULER] Stopped");
     }
 
-    static void handle(Message msg) {
+    void handle(Message msg) {
         switch (msg.getType()) {
 
             case FIRE_EVENT -> {
@@ -46,6 +54,8 @@ public class SchedulerSubsystem implements Runnable {
                 System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
 
                 transition(SchedulerEvent.FIRE_RECEIVED);
+                if (counts != null) { counts.incActiveFires(); }
+
                 tryDispatchIfPossible();
             }
 
@@ -65,6 +75,9 @@ public class SchedulerSubsystem implements Runnable {
 
                 // Mission finished; clear active job and attempt next
                 activeEvent = null;
+
+                //update GUI
+                if (counts != null) { counts.decActiveFires(); }
 
                 tryDispatchIfPossible();
             }
