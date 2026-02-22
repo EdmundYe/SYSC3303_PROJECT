@@ -9,25 +9,25 @@ import java.util.Queue;
 
 public class SchedulerSubsystem implements Runnable {
 
-    private static MessageTransporter transport = null;
-    private static final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
+    private final MessageTransporter transport;
+    private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
 
-    private static final int SINGLE_DRONE_ID = 1;
+    private final int SINGLE_DRONE_ID = 1;
 
-    private static FireEvent activeEvent = null;
+    private FireEvent activeEvent = null;
 
     //for gui
     private SystemCounts counts = null;
 
     // Scheduler state machine
-    private static SchedulerState schedulerState = SchedulerState.IDLE;
+    private SchedulerState schedulerState = SchedulerState.IDLE;
 
     public SchedulerSubsystem(MessageTransporter transport) {
-        SchedulerSubsystem.transport = transport;
+        this.transport = transport;
     }
 
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
-        SchedulerSubsystem.transport = transport;
+        this.transport = transport;
         this.counts = counts;
     }
 
@@ -88,7 +88,7 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
-    private static void tryDispatchIfPossible() {
+    private void tryDispatchIfPossible() {
         // Only dispatch when scheduler is idle and there is no active job.
         if (schedulerState != SchedulerState.IDLE) return;
         if (activeEvent != null) return;
@@ -110,7 +110,7 @@ public class SchedulerSubsystem implements Runnable {
                 + " to zone " + activeEvent.getZoneId());
     }
 
-    private static void transition(SchedulerEvent event) {
+    private void transition(SchedulerEvent event) {
         SchedulerState before = schedulerState;
         schedulerState = schedulerState.next(event);
 
