@@ -1,6 +1,6 @@
 package common;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.Objects;
 
 //This class is the container for any message that is sent between the 3 subsystems
@@ -27,6 +27,28 @@ public final class Message implements Serializable {
                 ", source_id=" + source_id +
                 ", payload=" + (payload == null ? "null" : payload.getClass().getSimpleName() + ":" + payload) +
                 '}';
+    }
+
+    public byte[] toBytes(){
+        try{
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            ObjectOutputStream out = new ObjectOutputStream(output);
+            out.writeObject(this);
+            out.flush();
+            return output.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Message fromBytes(byte[] data){
+        try{
+            ByteArrayInputStream input = new ByteArrayInputStream(data);
+            ObjectInputStream in = new ObjectInputStream(input);
+            return (Message) in.readObject();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     //functions to generate messages based on the event
