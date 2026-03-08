@@ -17,8 +17,8 @@ public class Main {
 
         MessageTransporter transport = new MessageTransporter();
 
-        Thread scheduler =
-                new Thread(new SchedulerSubsystem(transport, counts));
+//        Thread scheduler =
+//                new Thread(new SchedulerSubsystem(transport, counts));
 
         Thread fire =
                 new Thread(new FireIncidentSubsystem(
@@ -27,7 +27,7 @@ public class Main {
         Thread drone =
                 new Thread(new DroneSubsystem(1, transport, counts));
 
-        scheduler.start();
+        //scheduler.start();
         fire.start();
         drone.start();
     }

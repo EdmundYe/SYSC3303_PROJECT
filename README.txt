@@ -39,8 +39,10 @@ Derrick:
 -implemented scheduler state machine
 
 Asaad:
+- implemented drone state machine
 
 Chenwei:
+- implemented test files
 
 Edmund:
 - Updated UML Class Diagrams by adding states and events
