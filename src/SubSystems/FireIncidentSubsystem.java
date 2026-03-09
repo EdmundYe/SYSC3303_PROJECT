@@ -6,6 +6,7 @@ import common.*;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.net.*;
 import java.time.Instant;
 
 /**
@@ -30,6 +31,8 @@ public class FireIncidentSubsystem implements Runnable {
 
     private int outstandingFires = 0;
 
+    private DatagramSocket socket;
+
     /**
      * Constructs a SubSystems.FireIncidentSubsystem.
      *
@@ -39,6 +42,12 @@ public class FireIncidentSubsystem implements Runnable {
     public FireIncidentSubsystem(MessageTransporter transport, String csvFile) {
         this.transport = transport;
         this.csvFile = csvFile;
+        try {
+            this.socket = new DatagramSocket(7000);
+            socket.setSoTimeout(200);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -68,14 +77,28 @@ public class FireIncidentSubsystem implements Runnable {
                 Message msg = Message.fireEvent(event);
 
                 // Send the event to the Scheduler subsystem
-                transport.send(SendAddress.SCHEDULER, msg);
+                byte[] data = msg.toBytes();
+                DatagramPacket p = new DatagramPacket(data, data.length,
+                        InetAddress.getLocalHost(), 6000);
+                socket.send(p);
+
                 System.out.println("[FIRE] Sent FIRE_EVENT to Scheduler");
                 outstandingFires++;
 
                 // Wait for a response from the Scheduler
                 // For now the content of the response is not important
-                Message response =
-                        transport.receive(SendAddress.FIRE_INCIDENT);
+                byte[] buf = new byte[2048];
+                DatagramPacket packet = new DatagramPacket(buf, buf.length);
+
+                try {
+                    socket.receive(packet);
+                } catch (SocketTimeoutException _) {
+                }
+
+
+                Message response = Message.fromBytes(
+                        java.util.Arrays.copyOf(packet.getData(), packet.getLength())
+                );
 
                 System.out.println("[FIRE] Received response: " + response);
                 outstandingFires--;

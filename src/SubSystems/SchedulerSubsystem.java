@@ -20,6 +20,8 @@ public class SchedulerSubsystem {
     DatagramPacket receivePacket;
     DatagramSocket receiveSocket;
 
+    DatagramSocket sendSocket;
+
     // private final int SINGLE_DRONE_ID = 1;
 
     // private FireEvent activeEvent = null;
@@ -37,6 +39,7 @@ public class SchedulerSubsystem {
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
         try{
             receiveSocket = new DatagramSocket(6000);
+            sendSocket = new DatagramSocket();
         } catch (SocketException e) {
             e.printStackTrace();
         }
@@ -62,7 +65,7 @@ public class SchedulerSubsystem {
      * Scheduler will listen from incident port and send commands to drone port
      * messages works through messages type. First convert to byte then convert back
      */
-    void receiveAndSend(){
+    public void receiveAndSend(){
         while(true){
             byte[] message = new byte[100];
             receivePacket = new DatagramPacket(message, message.length);
@@ -87,6 +90,20 @@ public class SchedulerSubsystem {
                 pendingEvents.add(event);
                 System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
 
+                Message ack = new Message(MessageType.FIRE_EVENT, 0, null);
+                byte[] ackBytes = ack.toBytes();
+                DatagramPacket ackPacket = new DatagramPacket(
+                        ackBytes,
+                        ackBytes.length,
+                        adr,
+                        port
+                );
+                try {
+                    sendSocket.send(ackPacket);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
                 transition(SchedulerEvent.FIRE_RECEIVED);
                 if (counts != null) { counts.incActiveFires(); }
 
@@ -101,10 +118,11 @@ public class SchedulerSubsystem {
                 if(drone == null) {
                     drone = new DroneInfo(droneId);
                     drones.put(droneId,drone);
-                } else {
-                    if (!drone.busy){
-                        drone.available = true;
-                    }
+                }
+                drone.setListenAddress(adr);
+                drone.setListenPort(6100 + droneId);
+                if (!drone.busy){
+                    drone.available = true;
                 }
 
                 transition(SchedulerEvent.DRONE_POLL);
@@ -166,9 +184,9 @@ public class SchedulerSubsystem {
         );
 
         byte[] msg = Message.droneTask(drone.droneId, cmd).toBytes();
-        DatagramPacket msgPacket = new DatagramPacket(msg, msg.length, adr, port);
+        DatagramPacket msgPacket = new DatagramPacket(msg, msg.length, drone.getListenAddress(), drone.getListenPort());
         try{
-            receiveSocket.send(msgPacket);
+            sendSocket.send(msgPacket);
         } catch (IOException e){
             throw new RuntimeException(e);
         }
