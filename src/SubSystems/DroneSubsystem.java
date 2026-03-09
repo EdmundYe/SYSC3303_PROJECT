@@ -4,6 +4,9 @@ import MessageTransport.MessageTransporter;
 import MessageTransport.SendAddress;
 import common.*;
 
+import java.io.IOException;
+import java.net.*;
+
 public class DroneSubsystem implements Runnable {
     // Unique identifier for this drone
     private final int droneId;
@@ -13,8 +16,10 @@ public class DroneSubsystem implements Runnable {
     // Transport mechanism used to communicate with the Scheduler
     private final MessageTransporter transport;
 
+    private final DatagramSocket socket;
+
     // Indicates whether the drone should attempt to receive a task
-    private boolean waitingForTask = false;
+//    private boolean waitingForTask = false;
 
     //for GUI
     private SystemCounts counts = null;
@@ -28,11 +33,23 @@ public class DroneSubsystem implements Runnable {
     public DroneSubsystem(int droneId, MessageTransporter transport) {
         this.droneId = droneId;
         this.transport = transport;
+        try {
+            this.socket = new DatagramSocket(6100 + droneId);
+            socket.setSoTimeout(200);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public DroneSubsystem(int droneId, MessageTransporter transport, SystemCounts counts) {
         this.droneId = droneId;
         this.transport = transport;
+        try {
+            this.socket = new DatagramSocket(6100 + droneId);
+            socket.setSoTimeout(200);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
         this.counts = counts;
     }
 
@@ -49,24 +66,37 @@ public class DroneSubsystem implements Runnable {
             while (!Thread.currentThread().isInterrupted()) {
 
                 // Poll scheduler
-                transport.send(
-                        SendAddress.SCHEDULER,
-                        Message.dronePoll(droneId)
-                );
+                byte[] data = Message.dronePoll(droneId).toBytes();
+                DatagramPacket p = new DatagramPacket(data, data.length,
+                        InetAddress.getLocalHost(), 6000);
+                socket.send(p);
                 System.out.println("[DRONE " + droneId + "] Polling scheduler for tasks");
 
                 // Try to receive ONLY if scheduler has sent something
-                if (waitingForTask) {
-                    Message msg = transport.receive(SendAddress.DRONE);
+                try {
+                    byte[] buf = new byte[2048];
+                    DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                    socket.receive(packet);
+
+                    Message msg = Message.fromBytes(
+                            java.util.Arrays.copyOf(packet.getData(), packet.getLength())
+                    );
+
                     handleMessage(msg);
-                    waitingForTask = false;
+                } catch (SocketTimeoutException e) {
+                    // no message this cycle — safe to ignore
                 }
 
+
                 Thread.sleep(500);
-                waitingForTask = true; // allow receive on next loop
+//                waitingForTask = true; // allow receive on next loop
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
         System.out.println("[DRONE " + droneId + "] Drone subsystem stopped");
@@ -77,7 +107,7 @@ public class DroneSubsystem implements Runnable {
      *
      * @param msg message sent by the Scheduler
      */
-    private void handleMessage(Message msg) throws InterruptedException {
+    private void handleMessage(Message msg) throws InterruptedException, IOException {
 
         switch (msg.getType()) {
 
@@ -101,7 +131,10 @@ public class DroneSubsystem implements Runnable {
                 );
 
                 Message doneMsg = Message.droneDone(droneId, status);
-                transport.send(SendAddress.SCHEDULER, doneMsg);
+                byte[] out = doneMsg.toBytes();
+                DatagramPacket donePacket = new DatagramPacket(out, out.length,
+                        InetAddress.getLocalHost(), 6000);
+                socket.send(donePacket);
 
                 System.out.println("[DRONE " + droneId + "] Task completed and reported");
 
