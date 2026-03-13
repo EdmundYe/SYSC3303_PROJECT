@@ -13,7 +13,14 @@ import java.io.*;
 
 public class SchedulerSubsystem {
 
-    private final MessageTransporter transport;
+    private final MessageTransporter transport = null;
+
+    private static final int SCHEDULER_PORT = 6000;
+    private static final int FIRE_INCIDENT_PORT = 7000;
+    private static final String FIRE_INCIDENT_HOST = "localhost";
+    private static final int BUFFER_SIZE = 4096;
+    private static final int DEFAULT_DRONE_AGENT_CAPACITY = 100;
+
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
 
@@ -36,6 +43,16 @@ public class SchedulerSubsystem {
 //        this.transport = transport;
 //    }
 
+    public SchedulerSubsystem(SystemCounts counts) {
+        try {
+            this.receiveSocket = new DatagramSocket(SCHEDULER_PORT);
+            this.sendSocket = new DatagramSocket();
+        } catch (SocketException e) {
+            throw new RuntimeException("Failed to create scheduler sockets", e);
+        }
+        this.counts = counts;
+    }
+
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
         try{
             receiveSocket = new DatagramSocket(6000);
@@ -43,7 +60,7 @@ public class SchedulerSubsystem {
         } catch (SocketException e) {
             e.printStackTrace();
         }
-        this.transport = transport;
+        //this.transport = transport;
         this.counts = counts;
     }
 
@@ -62,159 +79,333 @@ public class SchedulerSubsystem {
 //    }
 
     /**
-     * Scheduler will listen from incident port and send commands to drone port
-     * messages works through messages type. First convert to byte then convert back
+     * Scheduler listens on UDP port 6000 and reacts to messages from
+     * FireIncidentSubsystem and DroneSubsystem.
      */
-    public void receiveAndSend(){
-        while(true){
-            byte[] message = new byte[100];
-            receivePacket = new DatagramPacket(message, message.length);
-            try{
+    public void receiveAndSend() {
+        System.out.println("[SCHEDULER] Scheduler started on port " + SCHEDULER_PORT);
+
+        while (true) {
+            try {
+                byte[] buffer = new byte[BUFFER_SIZE];
+                DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
                 receiveSocket.receive(receivePacket);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            byte[] data = new byte[receivePacket.getLength()];
-            System.arraycopy(receivePacket.getData(), receivePacket.getOffset(), data, 0, receivePacket.getLength());
-            InetAddress incomingAdr = receivePacket.getAddress();
-            int imcomingPort = receivePacket.getPort();
-            handle(Message.fromBytes(data), incomingAdr, imcomingPort);
-        }
-    }
 
-    void handle(Message msg, InetAddress adr, int port) {
-        switch (msg.getType()) {
-
-            case FIRE_EVENT -> {
-                FireEvent event = (FireEvent) msg.getPayload();
-                pendingEvents.add(event);
-                System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
-
-                Message ack = new Message(MessageType.FIRE_EVENT, 0, null);
-                byte[] ackBytes = ack.toBytes();
-                DatagramPacket ackPacket = new DatagramPacket(
-                        ackBytes,
-                        ackBytes.length,
-                        adr,
-                        port
+                byte[] data = new byte[receivePacket.getLength()];
+                System.arraycopy(
+                        receivePacket.getData(),
+                        receivePacket.getOffset(),
+                        data,
+                        0,
+                        receivePacket.getLength()
                 );
-                try {
-                    sendSocket.send(ackPacket);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
 
-                transition(SchedulerEvent.FIRE_RECEIVED);
-                if (counts != null) { counts.incActiveFires(); }
+                Message msg = Message.fromBytes(data);
+                InetAddress incomingAddress = receivePacket.getAddress();
+                int incomingPort = receivePacket.getPort();
 
-                tryDispatchIfPossible(adr, port);
-            }
-
-            case DRONE_POLL -> {
-                int droneId = (int) msg.getPayload();
-                System.out.println("[SCHEDULER] Drone polled: Drone " + droneId);
-
-                DroneInfo drone = drones.get(droneId);
-                if(drone == null) {
-                    drone = new DroneInfo(droneId);
-                    drones.put(droneId,drone);
-                }
-                drone.setListenAddress(adr);
-                drone.setListenPort(6100 + droneId);
-                if (!drone.busy){
-                    drone.available = true;
-                }
-
-                transition(SchedulerEvent.DRONE_POLL);
-                tryDispatchIfPossible(adr, port);
-            }
-
-            case DRONE_DONE -> {
-                DroneStatus status = (DroneStatus) msg.getPayload();
-                int droneId = msg.get_source_id();
-                System.out.println("[SCHEDULER] Drone completed task: " + status);
-
-                DroneInfo drone = drones.get(droneId);
-                if(drone != null){
-                    drone.available = true;
-                    drone.busy = false;
-                    drone.assignedEvent = null;
-                }
-
-                transition(SchedulerEvent.DRONE_DONE_RECEIVED);
-
-                // Mission finished; clear active job and attempt next
-                // activeEvent = null;
-
-                //update GUI
-                if (counts != null) { counts.decActiveFires(); }
-
-                tryDispatchIfPossible(adr, port);
-            }
-
-            default -> {
-                // ignore other message types for now
+                handle(msg, incomingAddress, incomingPort);
+            } catch (IOException e) {
+                throw new RuntimeException("Scheduler receive loop failed", e);
             }
         }
     }
 
-    private void tryDispatchIfPossible(InetAddress adr, int port) {
-        // Only dispatch when scheduler is idle and there is no active job.
-        if (schedulerState != SchedulerState.IDLE) return;
-        if (pendingEvents.isEmpty()) return;
+    void handle(Message msg, InetAddress address, int port) {
+        switch (msg.getType()) {
+            case FIRE_EVENT -> handleFireEvent(msg, address, port);
+            case DRONE_POLL -> handleDronePoll(msg, address, port);
+            case DRONE_STATUS -> handleDroneStatus(msg, address, port);
+            case DRONE_DONE -> handleDroneDone(msg, address, port);
+            default -> System.out.println("[SCHEDULER] Ignored message: " + msg);
+        }
+    }
 
-        while(!pendingEvents.isEmpty()){
-            DroneInfo drone = findAvailableDrone();
-            if (drone == null) return;
+    private void handleFireEvent(Message msg, InetAddress address, int port) {
+        FireEvent event = (FireEvent) msg.getPayload();
+        pendingEvents.add(event);
+
+        System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
+        transition(SchedulerEvent.FIRE_RECEIVED);
+
+        sendAckToFireIncident(address, port);
+
+        if (counts != null) {
+            counts.incActiveFires();
+        }
+
+        tryDispatchIfPossible();
+        refreshSchedulerState();
+    }
+
+    private void handleDronePoll(Message msg, InetAddress address, int port) {
+        int droneId = (int) msg.getPayload();
+        System.out.println("[SCHEDULER] Drone polled: Drone " + droneId);
+        transition(SchedulerEvent.DRONE_POLL);
+
+        DroneInfo drone = getOrCreateDrone(droneId);
+        updateDroneEndpoint(drone, address, port);
+
+        // only mark it available from poll if it is not already mid-mission
+        if (!drone.busy) {
+            drone.available = true;
+            drone.lastKnownState = DroneState.IDLE;
+            drone.lastStatusTimeMs = System.currentTimeMillis();
+        }
+
+        tryDispatchIfPossible();
+        refreshSchedulerState();
+    }
+
+    private void handleDroneStatus(Message msg, InetAddress address, int port) {
+        DroneStatus status = (DroneStatus) msg.getPayload();
+        int droneId = msg.get_source_id();
+
+        DroneInfo drone = getOrCreateDrone(droneId);
+        updateDroneEndpoint(drone, address, port);
+        drone.applyStatus(status);
+
+        System.out.println("[SCHEDULER] Drone status update: " + status);
+        transition(SchedulerEvent.DRONE_STATUS_RECEIVED);
+
+        refreshSchedulerState();
+    }
+
+    private void handleDroneDone(Message msg, InetAddress address, int port) {
+        DroneStatus status = (DroneStatus) msg.getPayload();
+        int droneId = msg.get_source_id();
+
+        System.out.println("[SCHEDULER] Drone completed task: " + status);
+        transition(SchedulerEvent.DRONE_DONE_RECEIVED);
+
+        DroneInfo drone = getOrCreateDrone(droneId);
+        updateDroneEndpoint(drone, address, port);
+
+        FireEvent completedEvent = drone.assignedEvent;
+
+        drone.markIdle();
+        drone.remainingAgent = status.get_remaining_agent();
+        drone.missionsCompleted++;
+
+        if (completedEvent != null) {
+            notifyFireOut(completedEvent);
+        }
+
+        if (counts != null) {
+            counts.decActiveFires();
+        }
+
+        tryDispatchIfPossible();
+        refreshSchedulerState();
+    }
+
+    private DroneInfo getOrCreateDrone(int droneId) {
+        DroneInfo drone = drones.get(droneId);
+        if (drone == null) {
+            drone = new DroneInfo(droneId);
+            drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
+            drones.put(droneId, drone);
+            System.out.println("[SCHEDULER] Registered Drone " + droneId);
+        }
+        return drone;
+    }
+
+    private void updateDroneEndpoint(DroneInfo drone, InetAddress address, int port) {
+        drone.setListenAddress(address);
+        drone.setListenPort(port);
+    }
+
+    //keep dispatching while there is pending work and at least one dispatchable drone
+    private void tryDispatchIfPossible() {
+        refreshSchedulerState();
+
+        while (!pendingEvents.isEmpty()) {
+            FireEvent nextEvent = pendingEvents.peek();
+            DroneInfo bestDrone = findBestDroneForNextEvent(nextEvent);
+
+            if (bestDrone == null) {
+                refreshSchedulerState();
+                return;
+            }
+
             FireEvent event = pendingEvents.poll();
-            dispatch(drone, event, adr, port);
+            dispatch(bestDrone, event);
+
+            transition(SchedulerEvent.DISPATCH_SENT);
+            refreshSchedulerState();
         }
+
+        refreshSchedulerState();
     }
 
-    private void dispatch(DroneInfo drone, FireEvent event, InetAddress adr, int port){
-        drone.available = false;
-        drone.busy = true;
-        drone.assignedEvent = event;
+    /**
+     1. Only dispatch drones that are reachable and available
+     2. Prefer the drone with fewer completed missions
+     3. Tie-break by lower drone ID
+     */
+    private DroneInfo findBestDroneForNextEvent(FireEvent event) {
+        DroneInfo best = null;
 
-        DroneCommand cmd = new DroneCommand(
+        for (DroneInfo drone : drones.values()) {
+            if (!drone.isDispatchable()) {
+                continue;
+            }
+
+            if (best == null) {
+                best = drone;
+                continue;
+            }
+
+            if (drone.missionsCompleted < best.missionsCompleted) {
+                best = drone;
+            } else if (drone.missionsCompleted == best.missionsCompleted
+                    && drone.droneId < best.droneId) {
+                best = drone;
+            }
+        }
+
+        return best;
+    }
+
+    private void dispatch(DroneInfo drone, FireEvent event) {
+        drone.markBusy(event);
+        if (drone.remainingAgent == null) {
+            drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
+        }
+
+        DroneCommand command = new DroneCommand(
                 "REQ-" + event.getTimestamp().toEpochMilli(),
                 DroneCommandOptions.DISPATCH,
                 event.getZoneId(),
                 event.getSeverity()
         );
 
-        byte[] msg = Message.droneTask(drone.droneId, cmd).toBytes();
-        DatagramPacket msgPacket = new DatagramPacket(msg, msg.length, drone.getListenAddress(), drone.getListenPort());
-        try{
-            sendSocket.send(msgPacket);
-        } catch (IOException e){
-            throw new RuntimeException(e);
+        Message taskMessage = Message.droneTask(drone.droneId, command);
+        byte[] payload = taskMessage.toBytes();
+
+        DatagramPacket packet = new DatagramPacket(
+                payload,
+                payload.length,
+                drone.getListenAddress(),
+                drone.getListenPort()
+        );
+
+        try {
+            sendSocket.send(packet);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
         }
-        transition(SchedulerEvent.DISPATCH_SENT);
-        System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId + " to zone " + event.getZoneId());
+
+        System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
+                + " to zone " + event.getZoneId()
+                + " (" + event.getSeverity() + ")");
     }
 
+    // Fire subsystem currently expects an ACK after each FIRE_EVENT send
+    private void sendAckToFireIncident(InetAddress address, int port) {
+        Message ack = new Message(MessageType.FIRE_EVENT, 0, null);
+        byte[] ackBytes = ack.toBytes();
+
+        DatagramPacket ackPacket = new DatagramPacket(
+                ackBytes,
+                ackBytes.length,
+                address,
+                port
+        );
+
+        try {
+            sendSocket.send(ackPacket);
+            System.out.println("[SCHEDULER] Sent FIRE_EVENT ACK");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to send fire ACK", e);
+        }
+    }
+
+
+    // Notify the Fire Incident subsystem that a zone has been serviced
+    private void notifyFireOut(FireEvent event) {
+        Message out = Message.fireOut(event);
+        byte[] bytes = out.toBytes();
+
+        try {
+            DatagramPacket packet = new DatagramPacket(
+                    bytes,
+                    bytes.length,
+                    InetAddress.getByName(FIRE_INCIDENT_HOST),
+                    FIRE_INCIDENT_PORT
+            );
+            sendSocket.send(packet);
+            System.out.println("[SCHEDULER] Sent FIRE_OUT for zone " + event.getZoneId());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to send FIRE_OUT", e);
+        }
+    }
+
+    private boolean hasBusyDrones() {
+        for (DroneInfo drone : drones.values()) {
+            if (drone.busy) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasDispatchableDrone() {
+        for (DroneInfo drone : drones.values()) {
+            if (drone.isDispatchable()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * IDLE:
+        no pending incidents and no drones currently working
+     * SENDING_DRONES:
+        there is pending work and at least one dispatchable drone
+     * WAITING_FOR_DRONES:
+        unresolved work still exists, but no drone can be dispatched right now,
+        or drones are still in the field
+     */
+    private void refreshSchedulerState() {
+        SchedulerState oldState = schedulerState;
+
+        boolean hasPending = !pendingEvents.isEmpty();
+        boolean hasBusy = hasBusyDrones();
+        boolean hasAvailable = hasDispatchableDrone();
+
+        if (!hasPending && !hasBusy) {
+            schedulerState = SchedulerState.IDLE;
+        } else if (hasPending && hasAvailable) {
+            schedulerState = SchedulerState.SENDING_DRONES;
+        } else {
+            schedulerState = SchedulerState.WAITING_FOR_DRONES;
+        }
+
+        if (oldState != schedulerState) {
+            System.out.println("[SCHEDULER] State: " + oldState + " -> " + schedulerState);
+        }
+    }
+
+    /**
+     * Keeps your enum-based transition style for logging/traceability.
+     * The actual effective Iteration 3 state is refreshed from real system conditions.
+     */
     private void transition(SchedulerEvent event) {
         SchedulerState before = schedulerState;
         schedulerState = schedulerState.next(event);
 
         if (before != schedulerState) {
-            System.out.println("[SCHEDULER] State: " + before + " -> " + schedulerState + " on " + event);
+            System.out.println("[SCHEDULER] Transition: " + before + " -> " + schedulerState + " on " + event);
+        } else {
+            System.out.println("[SCHEDULER] Event: " + event);
         }
-    }
-    private DroneInfo findAvailableDrone() {
-        for (DroneInfo drone : drones.values()){
-            if (drone.available) {
-                return drone;
-            }
-        }
-        return null;
     }
 
-    public static void main(String args[]){
-            MessageTransporter transport = new MessageTransporter();
-            SystemCounts counts = null;
-            SchedulerSubsystem scheduler = new SchedulerSubsystem(transport, counts);
-            scheduler.receiveAndSend();
+    public static void main(String[] args) {
+        SystemCounts counts = null;
+        SchedulerSubsystem scheduler = new SchedulerSubsystem(counts);
+        scheduler.receiveAndSend();
     }
 }

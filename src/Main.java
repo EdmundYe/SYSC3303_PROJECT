@@ -1,34 +1,40 @@
-import MessageTransport.MessageTransporter;
 import SubSystems.DroneSubsystem;
 import SubSystems.FireIncidentSubsystem;
 import SubSystems.SchedulerSubsystem;
 import common.SystemCounts;
 
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) {
+        int numberOfDrones = 3;
+        String inputFile = "src/input.csv";
 
         SystemCounts counts = new SystemCounts();
-
-        counts.setTotalDrones(1);
+        counts.setTotalDrones(numberOfDrones);
 
         SwingUtilities.invokeLater(() -> new GUI(counts).setVisible(true));
 
-        MessageTransporter transport = new MessageTransporter();
+        Thread schedulerThread = new Thread(() -> {
+            SchedulerSubsystem scheduler = new SchedulerSubsystem(counts);
+            scheduler.receiveAndSend();
+        }, "Scheduler-Thread");
 
-//        Thread scheduler =
-//                new Thread(new SchedulerSubsystem(transport, counts));
+        schedulerThread.start();
 
-        Thread fire =
-                new Thread(new FireIncidentSubsystem(
-                        transport, "src/input.csv"));
+        for (int i = 1; i <= numberOfDrones; i++) {
+            Thread droneThread = new Thread(
+                    new DroneSubsystem(i, null, counts),
+                    "Drone-" + i + "-Thread"
+            );
+            droneThread.start();
+        }
 
-        Thread drone =
-                new Thread(new DroneSubsystem(1, transport, counts));
+        Thread fireThread = new Thread(
+                new FireIncidentSubsystem(inputFile),
+                "FireIncident-Thread"
+        );
 
-        //scheduler.start();
-        fire.start();
-        drone.start();
+        fireThread.start();
     }
 }

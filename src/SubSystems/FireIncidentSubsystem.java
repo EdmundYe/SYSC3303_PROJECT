@@ -24,14 +24,25 @@ import java.time.Instant;
 public class FireIncidentSubsystem implements Runnable {
 
     // Transport mechanism used to communicate with other subsystems
-    private final MessageTransporter transport;
+    private MessageTransporter transport = null;
 
-    // Path to the CSV input file
-    private final String csvFile;
+    private static final String SCHEDULER_HOST = "localhost";
+    private static final int SCHEDULER_PORT = 6000;
+    private static final int FIRE_INCIDENT_PORT = 7000;
 
+    private final String csvFile; // Path to the CSV input file
     private int outstandingFires = 0;
+    private final DatagramSocket socket;
 
-    private DatagramSocket socket;
+    public FireIncidentSubsystem(String csvFile) {
+        this.csvFile = csvFile;
+        try {
+            this.socket = new DatagramSocket(FIRE_INCIDENT_PORT);
+            socket.setSoTimeout(500);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * Constructs a SubSystems.FireIncidentSubsystem.
@@ -40,7 +51,7 @@ public class FireIncidentSubsystem implements Runnable {
      * @param csvFile   path to the fire incident input file
      */
     public FireIncidentSubsystem(MessageTransporter transport, String csvFile) {
-        this.transport = transport;
+        //this.transport = transport;
         this.csvFile = csvFile;
         try {
             this.socket = new DatagramSocket(7000);
@@ -60,48 +71,34 @@ public class FireIncidentSubsystem implements Runnable {
         System.out.println("[FIRE] Fire Incident Subsystem started");
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
-
             String line;
-            while ((line = br.readLine()) != null) {
 
-                // Skip empty lines
+            while ((line = br.readLine()) != null) {
                 if (line.trim().isEmpty()) {
                     continue;
                 }
 
-                // Parse CSV line into a FireEvent object
                 FireEvent event = parseCSVLine(line);
                 System.out.println("[FIRE] Read event: " + event);
 
-                // Create a FIRE_EVENT message using the Message factory method
                 Message msg = Message.fireEvent(event);
-
-                // Send the event to the Scheduler subsystem
                 byte[] data = msg.toBytes();
-                DatagramPacket p = new DatagramPacket(data, data.length,
-                        InetAddress.getLocalHost(), 6000);
-                socket.send(p);
+
+                DatagramPacket packet = new DatagramPacket(
+                        data, data.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
+                );
+                socket.send(packet);
 
                 System.out.println("[FIRE] Sent FIRE_EVENT to Scheduler");
                 outstandingFires++;
 
-                // Wait for a response from the Scheduler
-                // For now the content of the response is not important
-                byte[] buf = new byte[2048];
-                DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                waitForAck();
+            }
 
-                try {
-                    socket.receive(packet);
-                } catch (SocketTimeoutException _) {
-                }
+            System.out.println("[FIRE] No more input events. Waiting for " + outstandingFires + " FIRE_OUT messages...");
 
-
-                Message response = Message.fromBytes(
-                        java.util.Arrays.copyOf(packet.getData(), packet.getLength())
-                );
-
-                System.out.println("[FIRE] Received response: " + response);
-                outstandingFires--;
+            while (outstandingFires > 0) {
+                waitForFireOut();
             }
 
         } catch (Exception e) {
@@ -111,29 +108,81 @@ public class FireIncidentSubsystem implements Runnable {
         System.out.println("[FIRE] No more events. Subsystem finished.");
     }
 
+    private void waitForAck() throws Exception {
+        while (true) {
+            byte[] buf = new byte[4096];
+            DatagramPacket packet = new DatagramPacket(buf, buf.length);
+
+            try {
+                socket.receive(packet);
+            } catch (SocketTimeoutException ignored) {
+                continue;
+            }
+
+            Message response = Message.fromBytes(
+                    java.util.Arrays.copyOf(packet.getData(), packet.getLength())
+            );
+
+            System.out.println("[FIRE] Received response: " + response);
+
+            if (response.getType() == MessageType.FIRE_EVENT) {
+                return;
+            }
+
+            if (response.getType() == MessageType.FIRE_OUT) {
+                outstandingFires--;
+                FireEvent event = (FireEvent) response.getPayload();
+                System.out.println("[FIRE] FIRE_OUT received while waiting for ACK: zone " + event.getZoneId());
+            }
+        }
+    }
+
+    private void waitForFireOut() throws Exception {
+        byte[] buf = new byte[4096];
+        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+
+        try {
+            socket.receive(packet);
+        } catch (SocketTimeoutException ignored) {
+            return;
+        }
+
+        Message response = Message.fromBytes(
+                java.util.Arrays.copyOf(packet.getData(), packet.getLength())
+        );
+
+        if (response.getType() == MessageType.FIRE_OUT) {
+            FireEvent event = (FireEvent) response.getPayload();
+            outstandingFires--;
+            System.out.println("[FIRE] FIRE_OUT received for zone " + event.getZoneId() +
+                    ". Outstanding fires: " + outstandingFires);
+        } else {
+            System.out.println("[FIRE] Ignored response: " + response);
+        }
+    }
+
     /**
-     * Parses a single line from the CSV file into a FireEvent object.
-     *
      * CSV format:
      * time, zoneId, eventType, severity
-     *
-     * @param line one line from the CSV file
-     * @return FireEvent created from the CSV data
      */
     public FireEvent parseCSVLine(String line) {
         String[] parts = line.split(",");
 
-        // Use current time
         Instant timestamp = Instant.now();
-
         int zoneId = Integer.parseInt(parts[1].trim());
-
-        FireEventType eventType =
-                FireEventType.valueOf(parts[2].trim());
-
-        Severity severity =
-                Severity.valueOf(parts[3].trim());
+        FireEventType eventType = FireEventType.valueOf(parts[2].trim());
+        Severity severity = Severity.valueOf(parts[3].trim());
 
         return new FireEvent(timestamp, zoneId, eventType, severity);
+    }
+
+    public static void main(String[] args) {
+        String csv = "C:\\FinalSemesterCarleton\\sysc3303_FinalProject\\src\\input.csv";
+        if (args.length > 0) {
+            csv = args[0];
+        }
+
+        FireIncidentSubsystem fireIncidentSubsystem = new FireIncidentSubsystem(csv);
+        fireIncidentSubsystem.run();
     }
 }

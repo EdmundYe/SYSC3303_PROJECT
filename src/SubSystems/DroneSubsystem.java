@@ -9,20 +9,33 @@ import java.net.*;
 
 public class DroneSubsystem implements Runnable {
     // Unique identifier for this drone
+    private static final String SCHEDULER_HOST = "localhost";
+    private static final int SCHEDULER_PORT = 6000;
+    private static final int DEFAULT_AGENT_CAPACITY = 100;
+
     private final int droneId;
-
     private DroneState state = DroneState.IDLE;
-
-    // Transport mechanism used to communicate with the Scheduler
-    private final MessageTransporter transport;
 
     private final DatagramSocket socket;
 
+    private Integer currentZoneId = null;
+    private int remainingAgent = DEFAULT_AGENT_CAPACITY;
+    private int missionsCompleted = 0;
+
+
+    // Transport mechanism used to communicate with the Scheduler
+    //private final MessageTransporter transport;
+
+
     // Indicates whether the drone should attempt to receive a task
-//    private boolean waitingForTask = false;
+    // private boolean waitingForTask = false;
 
     //for GUI
     private SystemCounts counts = null;
+
+    public DroneSubsystem(int droneId) {
+        this(droneId, null);
+    }
 
     /**
      * Constructs a SubSystems.DroneSubsystem.
@@ -32,7 +45,7 @@ public class DroneSubsystem implements Runnable {
      */
     public DroneSubsystem(int droneId, MessageTransporter transport) {
         this.droneId = droneId;
-        this.transport = transport;
+        //this.transport = transport;
         try {
             this.socket = new DatagramSocket(6100 + droneId);
             socket.setSoTimeout(200);
@@ -43,7 +56,7 @@ public class DroneSubsystem implements Runnable {
 
     public DroneSubsystem(int droneId, MessageTransporter transport, SystemCounts counts) {
         this.droneId = droneId;
-        this.transport = transport;
+        //this.transport = transport;
         try {
             this.socket = new DatagramSocket(6100 + droneId);
             socket.setSoTimeout(200);
@@ -54,9 +67,9 @@ public class DroneSubsystem implements Runnable {
     }
 
     /**
-     * Main execution loop of the Drone Subsystem.
-     * The drone continuously polls the Scheduler for tasks,
-     * executes received commands, and reports completion.
+     -Main execution loop of the Drone Subsystem.
+     -The drone continuously polls the Scheduler for tasks,
+     -executes received commands, and reports completion.
      */
     @Override
     public void run() {
@@ -64,14 +77,7 @@ public class DroneSubsystem implements Runnable {
 
         try {
             while (!Thread.currentThread().isInterrupted()) {
-
-                // Poll scheduler
-                byte[] data = Message.dronePoll(droneId).toBytes();
-                DatagramPacket p = new DatagramPacket(data, data.length,
-                        InetAddress.getLocalHost(), 6000);
-                socket.send(p);
-                System.out.println("[DRONE " + droneId + "] Polling scheduler for tasks");
-
+                sendPoll();
                 // Try to receive ONLY if scheduler has sent something
                 try {
                     byte[] buf = new byte[2048];
@@ -102,83 +108,124 @@ public class DroneSubsystem implements Runnable {
         System.out.println("[DRONE " + droneId + "] Drone subsystem stopped");
     }
 
-    /**
-     * Handles messages received from the Scheduler.
-     *
-     * @param msg message sent by the Scheduler
-     */
+    private void sendPoll() throws IOException {
+        byte[] data = Message.dronePoll(droneId).toBytes();
+        DatagramPacket packet = new DatagramPacket(
+                data, data.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
+        );
+        socket.send(packet);
+        System.out.println("[DRONE " + droneId + "] Polling scheduler for tasks");
+    }
+
+    private void sendStatus(DroneState state, Integer zoneId, Integer remainingAgent) throws IOException {
+        DroneStatus status = new DroneStatus(droneId, state, zoneId, remainingAgent);
+        Message msg = Message.droneStatus(droneId, status);
+        byte[] out = msg.toBytes();
+
+        DatagramPacket packet = new DatagramPacket(
+                out, out.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
+        );
+        socket.send(packet);
+        System.out.println("[DRONE " + droneId + "] Sent status: " + status);
+    }
+
+    private void sendDone() throws IOException {
+        DroneStatus status = new DroneStatus(droneId, state, null, remainingAgent);
+        Message doneMsg = Message.droneDone(droneId, status);
+        byte[] out = doneMsg.toBytes();
+
+        DatagramPacket packet = new DatagramPacket(
+                out, out.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
+        );
+        socket.send(packet);
+        System.out.println("[DRONE " + droneId + "] Task completed and reported");
+    }
+
+    // handle messages sent from scheduler
     private void handleMessage(Message msg) throws InterruptedException, IOException {
-
         switch (msg.getType()) {
-
             case DRONE_TASK -> {
-                System.out.println("[DRONE " + droneId + "] Received task");
-
-                if (counts != null) { counts.incBusyDrones(); }
-
-
                 DroneCommand command = (DroneCommand) msg.getPayload();
+                System.out.println("[DRONE " + droneId + "] Received task: " + command);
 
-                // Simulate execution of the drone task
+                if (counts != null) {
+                    counts.incBusyDrones();
+                }
+
                 executeCommand(command);
+                sendDone();
+                missionsCompleted++;
 
-                // After completing the task, report status back to Scheduler
-                DroneStatus status = new DroneStatus(
-                        droneId,
-                        state,
-                        command.get_zone_id(),
-                        null
-                );
-
-                Message doneMsg = Message.droneDone(droneId, status);
-                byte[] out = doneMsg.toBytes();
-                DatagramPacket donePacket = new DatagramPacket(out, out.length,
-                        InetAddress.getLocalHost(), 6000);
-                socket.send(donePacket);
-
-                System.out.println("[DRONE " + droneId + "] Task completed and reported");
-
-                if (counts != null) { counts.decBusyDrones(); }
+                if (counts != null) {
+                    counts.decBusyDrones();
+                }
             }
 
             default -> {
+                // ignore
             }
         }
     }
 
-    /**
-     * Simulates execution of a drone command.
-     *
-     * For now this method only uses Thread.sleep()
-     * to represent flight, agent drop, and return.
-     *
-     * @param command the command received from the Scheduler
-     */
-    private void executeCommand(DroneCommand command) throws InterruptedException {
+    private void executeCommand(DroneCommand command) throws InterruptedException, IOException {
+        currentZoneId = command.get_zone_id();
 
         transition(DroneEvent.TASK_RECEIVED);
-        System.out.println("[DRONE " + droneId + "] Dispatching to zone "
-                + command.get_zone_id());
+        sendStatus(state, currentZoneId, remainingAgent);
+        System.out.println("[DRONE " + droneId + "] Dispatching to zone " + currentZoneId);
 
         Thread.sleep(2000); // simulate travel time
 
         transition(DroneEvent.ARRIVED);
+        sendStatus(state, currentZoneId, remainingAgent);
+        System.out.println("[DRONE " + droneId + "] Arrived at zone " + currentZoneId);
 
-        System.out.println("[DRONE " + droneId + "] En route");
+        Thread.sleep(2000); // simulate drop time
 
-        Thread.sleep(2000); // simulate agent drop
-        System.out.println("[DRONE " + droneId + "] Dropping agent ("
-                + command.getSeverity() + ")");
+        int amountUsed = agentUsageForSeverity(command.getSeverity());
+        remainingAgent = Math.max(0, remainingAgent - amountUsed);
+
+        sendStatus(state, currentZoneId, remainingAgent);
+        System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
 
         transition(DroneEvent.DROP_COMPLETE);
+        sendStatus(state, currentZoneId, remainingAgent);
 
-        Thread.sleep(2000); // simulate return to base
+        Thread.sleep(2000); // simulate return time
+
         System.out.println("[DRONE " + droneId + "] Returning to base");
-
         transition(DroneEvent.RETURN_COMPLETE);
+        currentZoneId = null;
+
+        sendStatus(state, null, remainingAgent);
+
+        // reset to IDLE after reporting DONE state
+        state = DroneState.IDLE;
+        sendStatus(state, null, remainingAgent);
+    }
+
+    private int agentUsageForSeverity(Severity severity) {
+        return switch (severity) {
+            case LOW -> 10;
+            case MODERATE -> 20;
+            case HIGH -> 30;
+        };
     }
 
     private void transition(DroneEvent event) {
+        DroneState before = state;
         state = state.next(event);
+        System.out.println("[DRONE " + droneId + "] State: " + before + " -> " + state + " on " + event);
+    }
+
+    public static void main(String[] args) {
+        int droneId = 1;
+
+        if (args.length > 0) {
+            droneId = Integer.parseInt(args[0]);
+        }
+
+        DroneSubsystem drone = new DroneSubsystem(droneId);
+        drone.run();
     }
 }
