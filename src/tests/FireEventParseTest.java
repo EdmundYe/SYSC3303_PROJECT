@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class FireEventParseTest {
 
+    //FOR CHENWEI TO CHECK
     @Test
     void testParseCSVLine() {
         MessageTransporter mt = new MessageTransporter();

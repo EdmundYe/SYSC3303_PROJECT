@@ -16,11 +16,11 @@ import static common.Severity.HIGH;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SchedulerSubsystemTest {
-    /**
-     * Tests how scheduler handles FIRE_EVENT
-     * Expected result: response message confirms event is sent to events queue
-     * @throws InterruptedException
-     */
+//    /**
+//     * Tests how scheduler handles FIRE_EVENT
+//     * Expected result: response message confirms event is sent to events queue
+//     * @throws InterruptedException
+//     */
 //    @Test
 //    void testHandleFireEvent() throws InterruptedException {
 //        ByteArrayOutputStream buffer = new ByteArrayOutputStream();

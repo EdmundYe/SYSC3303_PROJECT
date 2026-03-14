@@ -19,6 +19,7 @@ class FireIncidentSubsystemTest {
      * @throws Exception
      */
     @Test
+    @Deprecated
     void testParseCSV() throws Exception{
         MessageTransporter testTransporter = new MessageTransporter();
         FireIncidentSubsystem testFireIncident = new FireIncidentSubsystem(testTransporter, "src/input.csv");
@@ -38,6 +39,7 @@ class FireIncidentSubsystemTest {
      * @throws Exception
      */
     @Test
+    @Deprecated
     void testRun() throws Exception{
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         System.setOut(new PrintStream(buffer));

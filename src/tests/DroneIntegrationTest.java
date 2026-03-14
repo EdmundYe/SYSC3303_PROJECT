@@ -21,6 +21,7 @@ class DroneIntegrationTest {
      * Note: DroneSubsystem uses Thread.sleep in executeCommand; allow generous timeout.
      */
     @Test
+    @Deprecated
     void testDronePollAndTaskExecution() throws Exception {
         MessageTransporter mt = new MessageTransporter();
         DroneSubsystem drone = new DroneSubsystem(1, mt);
