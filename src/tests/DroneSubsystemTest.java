@@ -21,6 +21,7 @@ class DroneSubsystemTest {
      * @throws Exception
      */
     @Test
+    @Deprecated
     void testRun() throws Exception{
         MessageTransporter testTransporter = new MessageTransporter();
         int droneId = 1;
@@ -46,6 +47,7 @@ class DroneSubsystemTest {
      * @throws Exception
      */
     @Test
+    @Deprecated
     void testDroneTask() throws Exception{
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         System.setOut(new PrintStream(buffer));
@@ -83,6 +85,7 @@ class DroneSubsystemTest {
      * @throws Exception
      */
     @Test
+    @Deprecated
     void testExecuteCommand() throws Exception{
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         System.setOut(new PrintStream(buffer));

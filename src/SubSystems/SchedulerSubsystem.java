@@ -11,9 +11,9 @@ import java.util.Queue;
 import java.net.*;
 import java.io.*;
 
-public class SchedulerSubsystem {
+public class SchedulerSubsystem{
 
-    private final MessageTransporter transport = null;
+    private MessageTransporter transport;
 
     private static final int SCHEDULER_PORT = 6000;
     private static final int FIRE_INCIDENT_PORT = 7000;
@@ -24,7 +24,6 @@ public class SchedulerSubsystem {
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
 
-    DatagramPacket receivePacket;
     DatagramSocket receiveSocket;
 
     DatagramSocket sendSocket;
@@ -64,6 +63,17 @@ public class SchedulerSubsystem {
         this.counts = counts;
     }
 
+    // THIS IS DEPRECATED DO NOT USE, ONLY HERE FOR THE PREVIOUS TESTS
+    public SchedulerSubsystem(MessageTransporter transport) {
+        try{
+            receiveSocket = new DatagramSocket(6000);
+            sendSocket = new DatagramSocket();
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        //this.transport = transport;
+    }
+//
 //    @Override
 //    public void run() {
 //        System.out.println("[SCHEDULER] Started");

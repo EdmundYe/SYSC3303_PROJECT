@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MessageTransporterTest {
 
     @Test
+    @Deprecated
     void testSendReceiveSingleMessage() throws Exception {
         MessageTransporter mt = new MessageTransporter();
         FireEvent fe = new FireEvent(java.time.Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW);
@@ -28,6 +29,7 @@ class MessageTransporterTest {
     }
 
     @Test
+    @Deprecated
     void testQueueOrderPreserved() throws Exception {
         MessageTransporter mt = new MessageTransporter();
         Message m1 = Message.fireEvent(new FireEvent(java.time.Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW));
