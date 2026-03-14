@@ -2,13 +2,18 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9d406309-beaf-41df-8d06-335732741e57" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" beforeDir="false" afterPath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/DroneIntegrationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/DroneIntegrationTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/DroneSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/DroneSubsystemTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/FireEventParseTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/FireEventParseTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/FireIncidentSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/FireIncidentSubsystemTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/MessageTransporterTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/MessageTransporterTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/DroneInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/DroneInfo.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/DroneStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/DroneStatus.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/Message.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/SchedulerEvent.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/SchedulerEvent.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/SchedulerState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/SchedulerState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/input.csv" beforeDir="false" afterPath="$PROJECT_DIR$/src/input.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/tests/SchedulerStateTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerStateTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" afterDir="false" />
     </list>
@@ -30,18 +35,18 @@
     <option name="ROOT_SYNC" value="DONT_SYNC" />
     <option name="UPDATE_TYPE" value="REBASE" />
   </component>
-  <component name="GitHubPullRequestSearchHistory">{
-  &quot;lastFilter&quot;: {
-    &quot;state&quot;: &quot;OPEN&quot;,
-    &quot;assignee&quot;: &quot;Derroccoli&quot;
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "Derroccoli"
   }
-}</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/EdmundYe/SYSC3303_PROJECT.git&quot;,
-    &quot;accountId&quot;: &quot;2f213367-5a43-4dc4-b9d1-b0d418c46384&quot;
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/EdmundYe/SYSC3303_PROJECT.git",
+    "accountId": "2f213367-5a43-4dc4-b9d1-b0d418c46384"
   }
-}</component>
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
 }</component>
@@ -57,14 +62,9 @@
     "Application.Main.executor": "Run",
     "Application.SchedulerSubsystem.executor": "Run",
     "Downloaded.Files.Path.Enabled": "false",
-    "JUnit.DroneIntegrationTest.executor": "Run",
-    "JUnit.DroneStateTest.executor": "Run",
     "JUnit.DroneSubsystemTest.executor": "Run",
-    "JUnit.FireEventParseTest.executor": "Run",
     "JUnit.FireIncidentSubsystemTest.executor": "Run",
-    "JUnit.MessageTransporterTest.executor": "Run",
     "JUnit.SchedulerDispatchIntegrationTest.executor": "Run",
-    "JUnit.SchedulerStateTest.executor": "Run",
     "JUnit.SchedulerSubsystemTest.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Repository.Attach.Annotations": "false",
@@ -123,17 +123,6 @@
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
-  </component>
-  <component name="Vcs.Log.Tabs.Properties">
-    <option name="TAB_STATES">
-      <map>
-        <entry key="MAIN">
-          <value>
-            <State />
-          </value>
-        </entry>
-      </map>
-    </option>
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

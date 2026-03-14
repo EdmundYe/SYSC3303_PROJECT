@@ -11,7 +11,7 @@ public class GUI extends JFrame {
     public GUI(SystemCounts counts) {
         setTitle("Simple Grid GUI");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(520, 360);
+        setSize(1100, 900);
         setLocationRelativeTo(null);
 
         JPanel root = new JPanel(new BorderLayout(10, 10));
@@ -31,8 +31,24 @@ public class GUI extends JFrame {
         grid.add(makeZoneCell("Z(3)"));
         grid.add(makeZoneCell("Z(4)"));
 
+        // Sidebar
+        JPanel sidebar = new JPanel();
+        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+        sidebar.setPreferredSize(new Dimension(250, 0));
+        sidebar.setBorder(BorderFactory.createTitledBorder("System Monitor"));
+
+        // Console area
+        JTextArea consoleLabel = new JTextArea();
+        consoleLabel.setEditable(false);
+        consoleLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        JScrollPane scroll = new JScrollPane(consoleLabel);
+        scroll.setPreferredSize(new Dimension(250, 600));
+        sidebar.add(scroll);
+
         root.add(top, BorderLayout.NORTH);
         root.add(grid, BorderLayout.CENTER);
+        root.add(sidebar, BorderLayout.EAST);
+
         setContentPane(root);
 
         // Poll counts periodically (simple + safe; does not intercept messages)
