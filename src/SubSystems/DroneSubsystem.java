@@ -12,6 +12,12 @@ public class DroneSubsystem implements Runnable {
     private static final String SCHEDULER_HOST = "localhost";
     private static final int SCHEDULER_PORT = 6000;
     private static final int DEFAULT_AGENT_CAPACITY = 100;
+    private static final int TRAVEL_TIME = 11300; // milliseconds
+    private static final int TIME_TO_OPEN_DOOR = 200; // milliseconds
+    private static final double WATER_DROP_RATE = 0.2; // L/s
+    private static final int ACCELERATION  = 6; // m/s
+    private static final int DECELERATION = 4; // m/s
+
 
     private final int droneId;
     private DroneState state = DroneState.IDLE;
@@ -169,29 +175,36 @@ public class DroneSubsystem implements Runnable {
 
     private void executeCommand(DroneCommand command) throws InterruptedException, IOException {
         currentZoneId = command.get_zone_id();
+        int distanceMeters = distanceForZone(currentZoneId);
+        int amountUsed = agentUsageForSeverity(command.getSeverity());
+
+        long outboundMs = computeTravelTimeMs(distanceMeters);
+        long dropMs = computeDropTimeMs(amountUsed);
+        long returnMs = computeTravelTimeMs(distanceMeters);
 
         transition(DroneEvent.TASK_RECEIVED);
         sendStatus(state, currentZoneId, remainingAgent);
         System.out.println("[DRONE " + droneId + "] Dispatching to zone " + currentZoneId);
 
-        Thread.sleep(2000); // simulate travel time
+        Thread.sleep(outboundMs); // us travel time to travel to zone
 
         transition(DroneEvent.ARRIVED);
         sendStatus(state, currentZoneId, remainingAgent);
         System.out.println("[DRONE " + droneId + "] Arrived at zone " + currentZoneId);
 
-        Thread.sleep(2000); // simulate drop time
+        Thread.sleep(TIME_TO_OPEN_DOOR); // simulate drop time
+        System.out.println("[DRONE " + droneId + "] Door opened");
 
-        int amountUsed = agentUsageForSeverity(command.getSeverity());
+        System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")") ;
+        Thread.sleep(dropMs);
+
         remainingAgent = Math.max(0, remainingAgent - amountUsed);
-
         sendStatus(state, currentZoneId, remainingAgent);
-        System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
 
         transition(DroneEvent.DROP_COMPLETE);
         sendStatus(state, currentZoneId, remainingAgent);
 
-        Thread.sleep(2000); // simulate return time
+        Thread.sleep(returnMs); // simulate return time
 
         System.out.println("[DRONE " + droneId + "] Returning to base");
         transition(DroneEvent.RETURN_COMPLETE);
@@ -202,6 +215,18 @@ public class DroneSubsystem implements Runnable {
         // reset to IDLE after reporting DONE state
         state = DroneState.IDLE;
         sendStatus(state, null, remainingAgent);
+    }
+
+    private long computeDropTimeMs(int litresToDrop){
+        double seconds = litresToDrop / WATER_DROP_RATE;
+        return (long) Math.ceil(seconds * 1000);
+    }
+
+    private long computeTravelTimeMs(double distanceMeters){
+        double peakSpeed = Math.sqrt((2 * distanceMeters * ACCELERATION * DECELERATION) / (ACCELERATION + DECELERATION));
+        double timeAccelerate = peakSpeed / ACCELERATION;
+        double timeDecelerate = peakSpeed / DECELERATION;
+        return (long) Math.ceil((timeAccelerate + timeDecelerate) * 1000);
     }
 
     private int agentUsageForSeverity(Severity severity) {
@@ -216,6 +241,16 @@ public class DroneSubsystem implements Runnable {
         DroneState before = state;
         state = state.next(event);
         System.out.println("[DRONE " + droneId + "] State: " + before + " -> " + state + " on " + event);
+    }
+
+    private int distanceForZone(int zoneId){
+        return switch (zoneId){
+            case 1 -> 500;
+            case 2 -> 800;
+            case 3 -> 1200;
+            case 4 -> 1500;
+            default -> 1000;
+        };
     }
 
     public static void main(String[] args) {

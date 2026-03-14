@@ -1,21 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="9d406309-beaf-41df-8d06-335732741e57" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" beforeDir="false" afterPath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Main.java" afterDir="false" />
+    <list default="true" id="a3f8e712-0741-43a0-ba2a-3863f9a7c354" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/DroneInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/DroneInfo.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/DroneStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/DroneStatus.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/Message.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/SchedulerEvent.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/SchedulerEvent.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/SchedulerState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/SchedulerState.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/input.csv" beforeDir="false" afterPath="$PROJECT_DIR$/src/input.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerStateTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerStateTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,18 +26,21 @@
     <option name="ROOT_SYNC" value="DONT_SYNC" />
     <option name="UPDATE_TYPE" value="REBASE" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "Derroccoli"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Derroccoli&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/EdmundYe/SYSC3303_PROJECT.git",
-    "accountId": "2f213367-5a43-4dc4-b9d1-b0d418c46384"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/EdmundYe/SYSC3303_PROJECT.git&quot;,
+    &quot;accountId&quot;: &quot;2f213367-5a43-4dc4-b9d1-b0d418c46384&quot;
   }
-}]]></component>
+}</component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
 }</component>
@@ -55,44 +49,38 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.DroneSubsystem.executor": "Run",
-    "Application.FireIncidentSubsystem.executor": "Run",
-    "Application.Main.executor": "Run",
-    "Application.SchedulerSubsystem.executor": "Run",
-    "Downloaded.Files.Path.Enabled": "false",
-    "JUnit.DroneSubsystemTest.executor": "Run",
-    "JUnit.FireIncidentSubsystemTest.executor": "Run",
-    "JUnit.SchedulerDispatchIntegrationTest.executor": "Run",
-    "JUnit.SchedulerSubsystemTest.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Repository.Attach.Annotations": "false",
-    "Repository.Attach.JavaDocs": "false",
-    "Repository.Attach.Sources": "false",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "main",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/FinalSemesterCarleton/sysc3303_FinalProject",
-    "nodejs_package_manager_path": "npm",
-    "onboarding.tips.debug.path": "C:/FinalSemesterCarleton/sysc3303_FinalProject/src/Main.java",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.DroneSubsystem.executor&quot;: &quot;Run&quot;,
+    &quot;Application.FireIncidentSubsystem.executor&quot;: &quot;Run&quot;,
+    &quot;Application.Main.executor&quot;: &quot;Run&quot;,
+    &quot;Application.SchedulerSubsystem.executor&quot;: &quot;Run&quot;,
+    &quot;Downloaded.Files.Path.Enabled&quot;: &quot;false&quot;,
+    &quot;JUnit.DroneSubsystemTest.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.FireIncidentSubsystemTest.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.SchedulerDispatchIntegrationTest.executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.SchedulerSubsystemTest.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Repository.Attach.Annotations&quot;: &quot;false&quot;,
+    &quot;Repository.Attach.JavaDocs&quot;: &quot;false&quot;,
+    &quot;Repository.Attach.Sources&quot;: &quot;false&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/FinalSemesterCarleton/sysc3303_FinalProject&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;C:/FinalSemesterCarleton/sysc3303_FinalProject/src/Main.java&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\FinalSemesterCarleton\sysc3303_FinalProject\src" />
     </key>
   </component>
   <component name="RunManager">
-    <configuration default="true" type="JetRunConfigurationType">
-      <module name="sysc3303_FinalProject" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
     <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
       <module name="sysc3303_FinalProject" />
       <option name="filePath" />
