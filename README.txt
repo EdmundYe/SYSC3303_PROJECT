@@ -33,6 +33,19 @@ scheduler-state-machine-diagram - State machine diagram showing scheduler states
 
 Iteration progress:
 
+Iteration 3:
+Derrick:
+-Added scheduling logic for drone selection: Dispatches drones that are reachable, pick drone with least amount of missions, tie break user drone with lower ID.
+-Added SENDING_DRONE state to scheduler
+-...
+
+Asaad:
+
+Edmund:
+
+Chenwei:
+
+
 Iteration 2:
 Derrick:
 -implemented GUI to have 4 grids, keeps track of active fires and if drone is busy or not (currently tracked through SystemCounts class)
