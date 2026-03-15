@@ -32,16 +32,10 @@ public class FireIncidentSubsystem implements Runnable {
 
     private final String csvFile; // Path to the CSV input file
     private int outstandingFires = 0;
-    private final DatagramSocket socket;
+    private DatagramSocket socket;
 
     public FireIncidentSubsystem(String csvFile) {
         this.csvFile = csvFile;
-        try {
-            this.socket = new DatagramSocket(FIRE_INCIDENT_PORT);
-            socket.setSoTimeout(500);
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     /**
@@ -51,14 +45,8 @@ public class FireIncidentSubsystem implements Runnable {
      * @param csvFile   path to the fire incident input file
      */
     public FireIncidentSubsystem(MessageTransporter transport, String csvFile) {
-        //this.transport = transport;
+        this.transport = transport;
         this.csvFile = csvFile;
-        try {
-            this.socket = new DatagramSocket(7000);
-            socket.setSoTimeout(200);
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     /**
@@ -68,6 +56,13 @@ public class FireIncidentSubsystem implements Runnable {
      */
     @Override
     public void run() {
+        try {
+            socket = new DatagramSocket(FIRE_INCIDENT_PORT);
+            socket.setSoTimeout(500);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+
         System.out.println("[FIRE] Fire Incident Subsystem started");
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
@@ -166,7 +161,7 @@ public class FireIncidentSubsystem implements Runnable {
      * time, zoneId, eventType, severity
      */
     public FireEvent parseCSVLine(String line) {
-        String[] parts = line.split(",");
+        String[] parts = line.split("\\s*,\\s*");
 
         Instant timestamp = Instant.now();
         int zoneId = Integer.parseInt(parts[1].trim());
@@ -177,7 +172,7 @@ public class FireIncidentSubsystem implements Runnable {
     }
 
     public static void main(String[] args) {
-        String csv = "C:\\FinalSemesterCarleton\\sysc3303_FinalProject\\src\\input.csv";
+        String csv = "src/input.csv";
         if (args.length > 0) {
             csv = args[0];
         }
