@@ -44,7 +44,8 @@ Asaad:
 Edmund:
 
 Chenwei:
-
+- Updated UML CLass Diagram
+- Fixed few bugs
 
 Iteration 2:
 Derrick:
