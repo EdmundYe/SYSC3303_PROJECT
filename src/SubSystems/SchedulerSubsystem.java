@@ -11,7 +11,7 @@ import java.util.Queue;
 import java.net.*;
 import java.io.*;
 
-public class SchedulerSubsystem{
+public class SchedulerSubsystem implements Runnable{
 
     private MessageTransporter transport;
 
@@ -20,6 +20,9 @@ public class SchedulerSubsystem{
     private static final String FIRE_INCIDENT_HOST = "localhost";
     private static final int BUFFER_SIZE = 4096;
     private static final int DEFAULT_DRONE_AGENT_CAPACITY = 100;
+    private static final int GUI_PORT = 8000;
+    private static final String GUI_HOST = "localhost";
+
 
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
@@ -92,7 +95,7 @@ public class SchedulerSubsystem{
      * Scheduler listens on UDP port 6000 and reacts to messages from
      * FireIncidentSubsystem and DroneSubsystem.
      */
-    public void receiveAndSend() {
+    public void run() {
         System.out.println("[SCHEDULER] Scheduler started on port " + SCHEDULER_PORT);
 
         while (true) {
@@ -302,6 +305,8 @@ public class SchedulerSubsystem{
 
         try {
             sendSocket.send(packet);
+            sendToGUI(taskMessage);
+
         } catch (IOException e) {
             throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
         }
@@ -325,6 +330,7 @@ public class SchedulerSubsystem{
 
         try {
             sendSocket.send(ackPacket);
+            sendToGUI(ack);
             System.out.println("[SCHEDULER] Sent FIRE_EVENT ACK");
         } catch (IOException e) {
             throw new RuntimeException("Failed to send fire ACK", e);
@@ -345,6 +351,7 @@ public class SchedulerSubsystem{
                     FIRE_INCIDENT_PORT
             );
             sendSocket.send(packet);
+            sendToGUI(out);
             System.out.println("[SCHEDULER] Sent FIRE_OUT for zone " + event.getZoneId());
         } catch (IOException e) {
             throw new RuntimeException("Failed to send FIRE_OUT", e);
@@ -413,9 +420,22 @@ public class SchedulerSubsystem{
         }
     }
 
+    private void sendToGUI(Message msg) {
+        try {
+            byte[] data = msg.toBytes();
+            DatagramPacket p = new DatagramPacket(
+                    data, data.length,
+                    InetAddress.getByName(GUI_HOST),
+                    GUI_PORT
+            );
+            sendSocket.send(p);
+        } catch (Exception ignored) {}
+    }
+
+
     public static void main(String[] args) {
         SystemCounts counts = null;
-        SchedulerSubsystem scheduler = new SchedulerSubsystem(counts);
-        scheduler.receiveAndSend();
+        Thread scheduler = new Thread(new SchedulerSubsystem(counts));
+        scheduler.start();
     }
 }
