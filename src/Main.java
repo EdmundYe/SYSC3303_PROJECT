@@ -15,10 +15,7 @@ public class Main {
 
         SwingUtilities.invokeLater(() -> new GUI(counts).setVisible(true));
 
-        Thread schedulerThread = new Thread(() -> {
-            SchedulerSubsystem scheduler = new SchedulerSubsystem(counts);
-            scheduler.receiveAndSend();
-        }, "Scheduler-Thread");
+        Thread schedulerThread = new Thread(new SchedulerSubsystem(counts));
 
         schedulerThread.start();
 
