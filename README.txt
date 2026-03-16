@@ -42,6 +42,8 @@ Derrick:
 -Deprecated old tests
 
 Asaad:
+- Implemented UDP for Fire incident and Drone subsystems
+- Updated GUI
 
 Edmund:
 - Implemented UDP communication for scheduler subsystem
