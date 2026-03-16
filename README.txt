@@ -4,7 +4,7 @@ Breakdown of Responsibilities
 Asaad: Coding
 Derrick: Tests and Coding
 Edmund: Coding
-ChenWei: Testing
+ChenWei: UML
 
 Prerequisites
 Java JDK 25
