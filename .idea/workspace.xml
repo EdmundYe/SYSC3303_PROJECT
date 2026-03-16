@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a3f8e712-0741-43a0-ba2a-3863f9a7c354" name="Changes" comment="">
+<<<<<<< HEAD
       <change afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
@@ -13,6 +14,16 @@
       <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/input.csv" beforeDir="false" afterPath="$PROJECT_DIR$/src/input.csv" afterDir="false" />
+=======
+      <change afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystemUdpTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystemUdpTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerUdpTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/input.csv" beforeDir="false" afterPath="$PROJECT_DIR$/src/input.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerStateTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerStateTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" afterDir="false" />
+>>>>>>> bf9e4fa616ec63b684c494ebc43be93c084e72a9
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -67,10 +78,15 @@
     "Application.Main.executor": "Run",
     "Application.SchedulerSubsystem.executor": "Run",
     "Downloaded.Files.Path.Enabled": "false",
+    "JUnit.DroneStateTest.executor": "Run",
     "JUnit.DroneSubsystemTest.executor": "Run",
+    "JUnit.DroneSubsystemUdpTest.executor": "Run",
     "JUnit.FireIncidentSubsystemTest.executor": "Run",
+    "JUnit.FireIncidentSubsystemUdpTest.executor": "Run",
     "JUnit.SchedulerDispatchIntegrationTest.executor": "Run",
+    "JUnit.SchedulerStateTest.executor": "Run",
     "JUnit.SchedulerSubsystemTest.executor": "Run",
+    "JUnit.SchedulerUdpTest.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Repository.Attach.Annotations": "false",
     "Repository.Attach.JavaDocs": "false",
@@ -78,17 +94,25 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+<<<<<<< HEAD
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "asaad",
     "jdk.selected.JAVA_MODULE": "25",
+=======
+    "git-widget-placeholder": "main",
+>>>>>>> bf9e4fa616ec63b684c494ebc43be93c084e72a9
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/FinalSemesterCarleton/sysc3303_FinalProject",
     "nodejs_package_manager_path": "npm",
     "onboarding.tips.debug.path": "C:/FinalSemesterCarleton/sysc3303_FinalProject/src/Main.java",
+<<<<<<< HEAD
     "project.structure.last.edited": "SDKs",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
     "settings.editor.selected.configurable": "project.propCompiler",
+=======
+    "settings.editor.selected.configurable": "preferences.sourceCode.HTML",
+>>>>>>> bf9e4fa616ec63b684c494ebc43be93c084e72a9
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
