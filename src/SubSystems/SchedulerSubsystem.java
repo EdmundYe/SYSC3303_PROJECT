@@ -138,6 +138,7 @@ public class SchedulerSubsystem implements Runnable{
         FireEvent event = (FireEvent) msg.getPayload();
         pendingEvents.add(event);
 
+        sendToGUI(msg);
         System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
         transition(SchedulerEvent.FIRE_RECEIVED);
 
@@ -153,6 +154,7 @@ public class SchedulerSubsystem implements Runnable{
 
     private void handleDronePoll(Message msg, InetAddress address, int port) {
         int droneId = (int) msg.getPayload();
+        sendToGUI(msg);
         System.out.println("[SCHEDULER] Drone polled: Drone " + droneId);
         transition(SchedulerEvent.DRONE_POLL);
 
@@ -178,6 +180,7 @@ public class SchedulerSubsystem implements Runnable{
         updateDroneEndpoint(drone, address, port);
         drone.applyStatus(status);
 
+        sendToGUI(msg);
         System.out.println("[SCHEDULER] Drone status update: " + status);
         transition(SchedulerEvent.DRONE_STATUS_RECEIVED);
 
@@ -188,6 +191,7 @@ public class SchedulerSubsystem implements Runnable{
         DroneStatus status = (DroneStatus) msg.getPayload();
         int droneId = msg.get_source_id();
 
+        sendToGUI(msg);
         System.out.println("[SCHEDULER] Drone completed task: " + status);
         transition(SchedulerEvent.DRONE_DONE_RECEIVED);
 
@@ -330,7 +334,6 @@ public class SchedulerSubsystem implements Runnable{
 
         try {
             sendSocket.send(ackPacket);
-            sendToGUI(ack);
             System.out.println("[SCHEDULER] Sent FIRE_EVENT ACK");
         } catch (IOException e) {
             throw new RuntimeException("Failed to send fire ACK", e);
@@ -429,7 +432,10 @@ public class SchedulerSubsystem implements Runnable{
                     GUI_PORT
             );
             sendSocket.send(p);
-        } catch (Exception ignored) {}
+            System.out.println("SCHEDULER SENT TO GUI");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 

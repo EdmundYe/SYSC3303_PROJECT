@@ -22,11 +22,20 @@ public class GUI extends JFrame {
     private final Map<Integer, JPanel> zonePanels = new HashMap<>();
     private final Map<Integer, JLabel> zoneInfoLabels = new HashMap<>();
 
+    private DatagramSocket sock;
+
     public GUI(SystemCounts counts) {
         setTitle("Automated Drone Fire Response System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 900);
         setLocationRelativeTo(null);
+
+        try {
+            sock = new DatagramSocket(8000);
+            System.out.println("[GUI] listening on port 8000");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to bind GUI socket", e);
+        }
 
         JPanel root = new JPanel(new BorderLayout(10, 10));
         root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
@@ -74,18 +83,23 @@ public class GUI extends JFrame {
 
 
         new Thread(() -> {
-            try (DatagramSocket sock = new DatagramSocket(8000)) {
-                byte[] buf = new byte[4096];
-                DatagramPacket packet = new DatagramPacket(buf, buf.length);
-
+            byte[] buf = new byte[4096];
                 while (true) {
-                    sock.receive(packet);
-                    Message msg = Message.fromBytes(
-                            Arrays.copyOf(packet.getData(), packet.getLength())
-                    );
-                    handleIncomingMessage(msg);
+                    try{
+                        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                        sock.receive(packet);
+                        System.out.println("[GUI] raw packet received, len=" + packet.getLength());
+                        Message msg = Message.fromBytes(
+                                Arrays.copyOf(packet.getData(), packet.getLength())
+                        );
+                        System.out.println("[GUI] decoded type=" + msg.getType()
+                                + ", payload=" + msg.getPayload());
+                        SwingUtilities.invokeLater(() -> handleIncomingMessage(msg));
+                    }
+                    catch (Exception e){
+                        e.printStackTrace();
+                    }
                 }
-            } catch (Exception ignored) {}
         }).start();
     }
 
@@ -131,7 +145,10 @@ public class GUI extends JFrame {
                 appendToConsole("DRONE_DONE: " + st);
             }
             case FIRE_EVENT -> {
-                FireEvent ev = (FireEvent) msg.getPayload();
+                if(!(msg.getPayload() instanceof FireEvent ev)){
+                    appendToConsole("Ignored malformed FIRE_EVENT " + msg);
+                    break;
+                }
                 zones.put(ev.getZoneId(), ev);
                 updateZoneColor(ev);
                 firesLabel.setText("Active fires: " + zones.size());

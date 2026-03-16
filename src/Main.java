@@ -13,7 +13,15 @@ public class Main {
         SystemCounts counts = new SystemCounts();
         counts.setTotalDrones(numberOfDrones);
 
-        SwingUtilities.invokeLater(() -> new GUI(counts).setVisible(true));
+        try {
+            SwingUtilities.invokeAndWait(() -> {
+                GUI gui = new GUI(counts);
+                gui.setVisible(true);
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to start GUI", e);
+        }
+
 
         Thread schedulerThread = new Thread(new SchedulerSubsystem(counts));
 
