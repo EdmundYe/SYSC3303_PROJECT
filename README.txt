@@ -37,7 +37,8 @@ Iteration 3:
 Derrick:
 -Added scheduling logic for drone selection: Dispatches drones that are reachable, pick drone with least amount of missions, tie break user drone with lower ID.
 -Added SENDING_DRONE state to scheduler
--...
+-added new set of test for new udp system
+-Deprecated old tests
 
 Asaad:
 
