@@ -2,7 +2,7 @@ Drone Fire Suppression System — Iteration 2A multi-subsystem simulation of an 
 
 Breakdown of Responsibilities
 Derrick and Asaad: Coding
-Edmund: UML / Sequence diagrams
+Edmund: Coding
 ChenWei: Testing
 
 Prerequisites
@@ -42,6 +42,8 @@ Derrick:
 Asaad:
 
 Edmund:
+- Implemented UDP communication for scheduler subsystem
+- Added Drone logic and travel calculations using Iteration 0 values
 
 Chenwei:
 - Updated UML CLass Diagram
