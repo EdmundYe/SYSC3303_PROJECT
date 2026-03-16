@@ -1,7 +1,8 @@
 Drone Fire Suppression System — Iteration 2A multi-subsystem simulation of an autonomous drone fire suppression system. This iteration builds on Iteration 1 by introducing state machines for the scheduler and drone subsystems, with a single drone coordinating fire response across zones.
 
 Breakdown of Responsibilities
-Derrick and Asaad: Coding
+Asaad: Coding
+Derrick: Tests and Coding
 Edmund: Coding
 ChenWei: Testing
 
