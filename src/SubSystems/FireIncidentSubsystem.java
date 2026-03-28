@@ -33,6 +33,7 @@ public class FireIncidentSubsystem implements Runnable {
     private final String csvFile; // Path to the CSV input file
     private int outstandingFires = 0;
     private DatagramSocket socket;
+    long previousEventMs = -1;
 
     public FireIncidentSubsystem(String csvFile) {
         this.csvFile = csvFile;
@@ -55,7 +56,7 @@ public class FireIncidentSubsystem implements Runnable {
      * to the Scheduler subsystem.
      */
     @Override
-    public void run() {
+    public void run(){
         try {
             socket = new DatagramSocket(FIRE_INCIDENT_PORT);
             socket.setSoTimeout(500);
@@ -67,13 +68,43 @@ public class FireIncidentSubsystem implements Runnable {
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
             String line;
+            int lineNumber = 0;
 
             while ((line = br.readLine()) != null) {
+                lineNumber++;
+
+                // Skip empty lines
                 if (line.trim().isEmpty()) {
                     continue;
                 }
 
-                FireEvent event = parseCSVLine(line);
+                // Try to parse the CSV line
+                FireEvent event = null;
+                try {
+                    event = parseCSVLine(line);
+                } catch (Exception e) {
+                    System.err.println("[FIRE] Error parsing line " + lineNumber + ": " + e.getMessage());
+                    continue;  // Skip this line and continue
+                }
+
+                // Skip header row (parseCSVLine returns null for headers)
+                if (event == null) {
+                    System.out.println("[FIRE] Skipping header row");
+                    continue;
+                }
+                long currentEventMs = event.getTimestamp().toEpochMilli();
+                if(previousEventMs >= 0){
+                    long delay = Math.min(currentEventMs - previousEventMs, 3000);
+                    if (delay > 0){
+                        try {
+                            Thread.sleep(delay);
+                        } catch (InterruptedException e){
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                }
+                previousEventMs = currentEventMs;
+
                 System.out.println("[FIRE] Read event: " + event);
 
                 Message msg = Message.fireEvent(event);
@@ -157,20 +188,117 @@ public class FireIncidentSubsystem implements Runnable {
     }
 
     /**
-     * CSV format:
-     * time, zoneId, eventType, severity
+     * Parses a CSV line and creates a FireEvent object.
+     * Extended in Iteration 4 to parse fault information from the input file.
+     *
+     * CSV Format (with header):
+     * Time,ZoneId,EventType,Severity,FaultType,FaultDelaySeconds
+     * Example: 14:03:15,3,FIRE_DETECTED,HIGH,DRONE_STUCK,15
+     *
+     * Backwards compatible: if old format (4 fields) is detected, still works
+     *
+     * @param line A comma-separated string representing one fire event
+     * @return A FireEvent object with all parsed information including fault data
+     * @throws NumberFormatException if the CSV format is invalid
      */
     public FireEvent parseCSVLine(String line) {
-        String[] parts = line.split("\\s*,\\s*");
+        // Trim whitespace from line
+        String trimmedLine = line.trim();
 
-        Instant timestamp = Instant.now();
-        int zoneId = Integer.parseInt(parts[1].trim());
-        FireEventType eventType = FireEventType.valueOf(parts[2].trim());
-        Severity severity = Severity.valueOf(parts[3].trim());
-        FaultType faultType = FaultType.valueOf(parts[4].trim());
-        int faultDelayType = Integer.parseInt(parts[5].trim());
+        // Skip header row (first line with "Time,ZoneId,EventType,Severity,FaultType,FaultDelaySeconds")
+        if (trimmedLine.startsWith("Time") || trimmedLine.startsWith("time")) {
+            return null;  // Signal to skip header
+        }
 
-        return new FireEvent(timestamp, zoneId, eventType, severity, faultType, faultDelayType);
+        // Split by comma, allowing spaces around delimiters
+        String[] parts = trimmedLine.split("\\s*,\\s*");
+
+        // Validate minimum number of fields (4 for old format, 6 for new format)
+        if (parts.length < 4) {
+            throw new IllegalArgumentException(
+                    "Invalid CSV format: expected at least 4 fields, got " + parts.length +
+                            " from line: " + line
+            );
+        }
+
+        try {
+            // ===== Parse mandatory fields (common to both old and new format) =====
+
+            // Field 0: Time in HH:mm:ss format
+            String timeStr = parts[0].trim();
+
+            // Field 1: Zone ID (must be a valid integer)
+            int zoneId = Integer.parseInt(parts[1].trim());
+
+            // Field 2: Event type (FIRE_DETECTED or DRONE_REQUEST)
+            FireEventType eventType = FireEventType.valueOf(parts[2].trim().toUpperCase());
+
+            // Field 3: Severity level (HIGH, MODERATE, LOW)
+            Severity severity = Severity.valueOf(parts[3].trim().toUpperCase());
+
+            // ===== Parse optional fault information (Iteration 4 addition) =====
+
+            // Field 4: Fault type (NONE, DRONE_STUCK, NOZZLE_JAM, PACKET_LOSS)
+            // Default to NONE if not provided (backwards compatible)
+            FaultType faultType = FaultType.NONE;
+            if (parts.length >= 5) {
+                String faultTypeStr = parts[4].trim().toUpperCase();
+                if (!faultTypeStr.isEmpty() && !faultTypeStr.equals("NONE")) {
+                    try {
+                        faultType = FaultType.valueOf(faultTypeStr);
+                    } catch (IllegalArgumentException e) {
+                        System.err.println("[FIRE] Warning: Unknown fault type '" + parts[4].trim() +
+                                "', defaulting to NONE");
+                        faultType = FaultType.NONE;
+                    }
+                }
+            }
+
+            // Field 5: Fault delay in seconds
+            // Default to 0 if not provided
+            int faultDelaySeconds = 0;
+            if (parts.length >= 6) {
+                String delayStr = parts[5].trim();
+                if (!delayStr.isEmpty()) {
+                    faultDelaySeconds = Integer.parseInt(delayStr);
+                }
+            }
+
+            // Convert time string to Instant
+            // Use current date + provided time
+            Instant timestamp = Instant.now();
+            try {
+                // Parse "14:03:15" format
+                java.time.LocalTime time = java.time.LocalTime.parse(
+                        timeStr,
+                        java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
+                );
+
+                // Combine with today's date to create full timestamp
+                timestamp = time
+                        .atDate(java.time.LocalDate.now())
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toInstant();
+            } catch (Exception timeParseEx) {
+                System.err.println("[FIRE] Warning: Could not parse time '" + timeStr +
+                        "', using current time");
+                // Use Instant.now() as fallback
+            }
+
+            // Create and return FireEvent with all parsed data
+            return new FireEvent(timestamp, zoneId, eventType, severity, faultType, faultDelaySeconds);
+
+        } catch (NumberFormatException e) {
+            throw new NumberFormatException(
+                    "Failed to parse CSV line (number format error): " + line + "\n" +
+                            "Cause: " + e.getMessage()
+            );
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Failed to parse CSV line (invalid enum value): " + line + "\n" +
+                            "Cause: " + e.getMessage()
+            );
+        }
     }
 
     public static void main(String[] args) {

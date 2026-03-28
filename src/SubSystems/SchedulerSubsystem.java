@@ -58,10 +58,14 @@ public class SchedulerSubsystem implements Runnable{
         }
         this.counts = counts;
 
-        SwingUtilities.invokeLater(()->{
-            this.gui = new GUI(counts);
-            this.gui.setVisible(true);
-        });
+        try {
+            SwingUtilities.invokeAndWait(() -> {
+                this.gui = new GUI(counts);
+                this.gui.setVisible(true);
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to start GUI", e);
+        }
     }
 
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {

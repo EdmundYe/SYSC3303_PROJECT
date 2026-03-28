@@ -60,7 +60,7 @@ public final class DroneStatus implements Serializable {
                 ", state=" + state +
                 ", zone_id=" + zone_id +
                 ", remaining_agent=" + remaining_agent +
-                ", pos=(" + String.format("%.of", posX) + "," + String.format("%.of", posY) + ")" +
+                ", pos=(" + String.format("%.0f", posX) + "," + String.format("%.0f", posY) + ")" +
                 ", status_time_ms=" + status_time_ms +
                 '}';
     }

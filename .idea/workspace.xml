@@ -5,23 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="260e008f-10f7-4a12-9fbd-868217b302ed" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/common/ZoneMap.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_2026-03-15_6_52_p_m__[Changes]/shelved.patch" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_2026-03-15_6_52_p_m___Changes_.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.txt" beforeDir="false" afterPath="$PROJECT_DIR$/README.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/GUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/GUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystemUdpTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystemUdpTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/SubSystems/GUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/GUI.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/DroneInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/DroneInfo.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/common/DroneStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/DroneStatus.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/SystemCounts.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/SystemCounts.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/MessageTransporterTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/MessageTransporterTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerDispatchIntegrationTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/ZoneMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/ZoneMap.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

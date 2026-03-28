@@ -2,6 +2,10 @@ package common;
 
 import java.util.Map;
 
+/*
+Map class to help with drone tracking
+ */
+
 public class ZoneMap {
     private static final Map<Integer, int[]> COORDS = Map.of(
             1, new int[] {500, 0},
@@ -12,12 +16,6 @@ public class ZoneMap {
 
     public static int[] get(int zoneId){
         return COORDS.getOrDefault(zoneId, new int[]{1000, 0});
-    }
-
-    public static double distanceBetween(int zoneA, int zoneB){
-        int[] a = get(zoneA);
-        int[] b = get(zoneB);
-        return Math.hypot(b[0]-a[0], b[1]-a[1]);
     }
 
     public static boolean isOnPath(int targetZone, int candidateZone, double thresholdMeters){
@@ -39,4 +37,8 @@ public class ZoneMap {
         return perpDist <= thresholdMeters;
     }
 
+    public static double distanceFromBase(int zoneId) {
+        int[] z = get(zoneId);
+        return Math.hypot(z[0], z[1]); // distance from (0,0) to zone center
+    }
 }

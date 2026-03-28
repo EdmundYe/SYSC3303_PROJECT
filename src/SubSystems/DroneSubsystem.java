@@ -6,6 +6,7 @@ import common.*;
 
 import java.io.IOException;
 import java.net.*;
+import java.util.Arrays;
 
 public class DroneSubsystem implements Runnable {
     // Unique identifier for this drone
@@ -204,14 +205,14 @@ public class DroneSubsystem implements Runnable {
         int distanceMeters = distanceForZone(currentZoneId);
         int amountUsed = agentUsageForSeverity(command.getSeverity());
 
-        long outboundMs = computeTravelTimeMs(distanceMeters);
-        long dropMs = computeDropTimeMs(amountUsed);
-        long returnMs = computeTravelTimeMs(distanceMeters);
-
         transition(DroneEvent.TASK_RECEIVED);
 
+        long outboundMs = computeTravelTimeMs((int) ZoneMap.distanceFromBase(currentZoneId));
         travelToZone(currentZoneId, outboundMs);
 
+        int targetZone = currentZoneId;
+        long dropMs = computeDropTimeMs(amountUsed);
+        long returnMs = computeTravelTimeMs((int) ZoneMap.distanceFromBase(targetZone));
 
         System.out.println("[DRONE " + droneId + "] Dispatching to zone " + currentZoneId);
 
@@ -250,6 +251,21 @@ public class DroneSubsystem implements Runnable {
 
         for(int i = 1; i <= steps; i++){
             Thread.sleep(stepMs);
+            try {
+                byte[] buf = new byte[2048];
+                DatagramPacket p = new DatagramPacket(buf, buf.length);
+                socket.receive(p); // non-blocking due to setSoTimeout(200)
+                Message msg = Message.fromBytes(Arrays.copyOf(p.getData(), p.getLength()));
+
+                if (msg.getType() == MessageType.DRONE_TASK) {
+                    DroneCommand redirect = (DroneCommand) msg.getPayload();
+                    System.out.println("[DRONE " + droneId + "] Redirected to zone " + redirect.get_zone_id());
+                    currentZoneId = redirect.get_zone_id(); // update destination
+                    return; // exit travel, executeCommand will re-travel to new zone
+                }
+            } catch (SocketTimeoutException ignored) {
+                // no redirect, continue flying
+            }
             double progress = (double) i / steps;
             double currX = dest[0] * progress;
             double currY = dest[1] * progress;
