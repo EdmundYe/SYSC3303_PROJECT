@@ -81,6 +81,10 @@ public final class Message implements Serializable {
         return new Message(MessageType.DRONE_DONE, droneId, status);
     }
 
+    public static Message droneFault(int droneId, FaultType faultType) {
+        return new Message(MessageType.DRONE_FAULT, droneId, faultType);
+    }
+
     public static Message fireOut(FireEvent event) {
         return new Message(MessageType.FIRE_OUT, 0, event);
     }

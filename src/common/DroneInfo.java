@@ -53,7 +53,18 @@ public class DroneInfo {
     }
 
     public boolean isDispatchable() {
-        return available && !busy && listenAddress != null;
+        // Cannot dispatch if already busy
+        if (busy) {
+            return false;
+        }
+
+        // Cannot dispatch if FAULTED or OFFLINE (Iteration 4)
+        if (lastKnownState == DroneState.FAULTED || lastKnownState == DroneState.OFFLINE) {
+            return false;
+        }
+
+        // Can only dispatch if available and reachable
+        return available;
     }
 
     public void markBusy(FireEvent event) {

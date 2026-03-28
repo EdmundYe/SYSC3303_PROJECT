@@ -15,5 +15,6 @@ public enum MessageType {
     DRONE_TASK,
     DRONE_STATUS,
     DRONE_DONE,
-    FIRE_OUT
+    FIRE_OUT,
+    DRONE_FAULT
 }
