@@ -45,7 +45,8 @@ Asaad:
 Edmund:
 
 Chenwei:
-
+- Edit CLass Diagram
+- Fault type enumeration and made for support fault injection
 
 Iteration 3:
 Derrick:
