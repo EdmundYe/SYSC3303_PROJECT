@@ -66,7 +66,9 @@ class FireIncidentSubsystemUdpTest {
                 Instant.now(),
                 1,
                 FireEventType.FIRE_DETECTED,
-                Severity.MODERATE
+                Severity.MODERATE,
+                FaultType.NONE,
+                0
         );
 
         Thread sender = new Thread(() -> {
