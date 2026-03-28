@@ -4,6 +4,7 @@ import MessageTransport.MessageTransporter;
 import MessageTransport.SendAddress;
 import common.*;
 
+import javax.swing.*;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +46,9 @@ public class SchedulerSubsystem implements Runnable{
 //        this.transport = transport;
 //    }
 
+    // implement SubSystems.GUI running inside scheduler
+    private GUI gui;
+
     public SchedulerSubsystem(SystemCounts counts) {
         try {
             this.receiveSocket = new DatagramSocket(SCHEDULER_PORT);
@@ -53,6 +57,15 @@ public class SchedulerSubsystem implements Runnable{
             throw new RuntimeException("Failed to create scheduler sockets", e);
         }
         this.counts = counts;
+
+        try {
+            SwingUtilities.invokeAndWait(() -> {
+                this.gui = new GUI(counts);
+                this.gui.setVisible(true);
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to start GUI", e);
+        }
     }
 
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
@@ -261,26 +274,32 @@ public class SchedulerSubsystem implements Runnable{
      3. Tie-break by lower drone ID
      */
     private DroneInfo findBestDroneForNextEvent(FireEvent event) {
+        int requestedZone = event.getZoneId();
         DroneInfo best = null;
+        double bestScore = Double.MAX_VALUE;
 
         for (DroneInfo drone : drones.values()) {
-            if (!drone.isDispatchable()) {
-                continue;
+            if(drone.isDispatchable()){
+                double timeToZone = drone.estimateSecondsToZone(requestedZone);
+                double score = timeToZone + drone.missionsCompleted * 10.0;
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = drone;
+                }
             }
-
-            if (best == null) {
-                best = drone;
-                continue;
-            }
-
-            if (drone.missionsCompleted < best.missionsCompleted) {
-                best = drone;
-            } else if (drone.missionsCompleted == best.missionsCompleted
-                    && drone.droneId < best.droneId) {
-                best = drone;
+            if (drone.busy && drone.destinationZone != -1){
+                boolean passesThrough = ZoneMap.isOnPath(drone.destinationZone, requestedZone, 150);
+                boolean sameSeverity = event.getSeverity() == drone.assignedEvent.getSeverity();
+                if (passesThrough && sameSeverity){
+                    double timeToZone = drone.estimateSecondsToZone(requestedZone);
+                    double score = timeToZone;
+                    if (score < bestScore){
+                        bestScore = score;
+                        best = drone;
+                    }
+                }
             }
         }
-
         return best;
     }
 
@@ -424,23 +443,15 @@ public class SchedulerSubsystem implements Runnable{
     }
 
     private void sendToGUI(Message msg) {
-        try {
-            byte[] data = msg.toBytes();
-            DatagramPacket p = new DatagramPacket(
-                    data, data.length,
-                    InetAddress.getByName(GUI_HOST),
-                    GUI_PORT
-            );
-            sendSocket.send(p);
-            System.out.println("SCHEDULER SENT TO GUI");
-        } catch (Exception e) {
-            e.printStackTrace();
+        if(gui != null){
+            SwingUtilities.invokeLater(()-> gui.handleIncomingMessage(msg));
         }
     }
 
 
     public static void main(String[] args) {
         SystemCounts counts = null;
+
         Thread scheduler = new Thread(new SchedulerSubsystem(counts));
         scheduler.start();
     }

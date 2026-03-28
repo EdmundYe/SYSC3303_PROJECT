@@ -4,7 +4,6 @@ import java.net.InetAddress;
 
 public class DroneInfo {
     public final int droneId;
-
     public boolean available;
     public boolean busy;
     public FireEvent assignedEvent;
@@ -14,6 +13,10 @@ public class DroneInfo {
     public Integer remainingAgent;
     public int missionsCompleted;
     public long lastStatusTimeMs;
+
+    public double posX = 0;
+    public double posY = 0;
+    public int destinationZone = -1;
 
     private InetAddress listenAddress;
     private int listenPort;
@@ -58,6 +61,7 @@ public class DroneInfo {
         this.busy = true;
         this.assignedEvent = event;
         this.currentZoneId = event.getZoneId();
+        this.destinationZone = event.getZoneId();
         this.lastKnownState = DroneState.EN_ROUTE;
         this.lastStatusTimeMs = System.currentTimeMillis();
     }
@@ -67,6 +71,7 @@ public class DroneInfo {
         this.busy = false;
         this.assignedEvent = null;
         this.currentZoneId = null;
+        this.currentZoneId = -1;
         this.lastKnownState = DroneState.IDLE;
         this.lastStatusTimeMs = System.currentTimeMillis();
     }
@@ -76,13 +81,22 @@ public class DroneInfo {
         this.currentZoneId = status.get_zone_id();
         this.remainingAgent = status.get_remaining_agent();
         this.lastStatusTimeMs = status.get_status_time_ms();
+        this.posX = status.getPosX();
+        this.posY = status.getPosY();
 
         if (status.getState() == DroneState.IDLE || status.getState() == DroneState.DONE) {
             this.available = true;
             this.busy = false;
+            this.destinationZone = -1;
         } else {
             this.available = false;
             this.busy = true;
         }
+    }
+
+    public double estimateSecondsToZone(int targetZone){
+        int[] dest = ZoneMap.get(targetZone);
+        double dist = Math.hypot(dest[0] - posX, dest[1] - posY);
+        return dist / 15.0;
     }
 }

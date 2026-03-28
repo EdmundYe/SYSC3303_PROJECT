@@ -25,7 +25,7 @@ Run each test individually or via your IDE's test runner
 
 
 Project Structure
-src/ — Main source code including scheduler, drone subsystem, and GUI components
+src/ — Main source code including scheduler, drone subsystem, and SubSystems.GUI components
 src/tests/ — JUnit 5 test files
 iteration2-class-diagram — UML class diagram reflecting Iteration 2 changes
 iteration2-sequence-diagram — Sequence diagram showing scheduler-drone message passing
@@ -43,7 +43,7 @@ Derrick:
 
 Asaad:
 - Implemented UDP for Fire incident and Drone subsystems
-- Updated GUI
+- Updated SubSystems.GUI
 
 Edmund:
 - Implemented UDP communication for scheduler subsystem
@@ -55,7 +55,7 @@ Chenwei:
 
 Iteration 2:
 Derrick:
--implemented GUI to have 4 grids, keeps track of active fires and if drone is busy or not (currently tracked through SystemCounts class)
+-implemented SubSystems.GUI to have 4 grids, keeps track of active fires and if drone is busy or not (currently tracked through SystemCounts class)
 -implemented scheduler state machine
 
 Asaad:

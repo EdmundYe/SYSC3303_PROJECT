@@ -33,6 +33,7 @@ public class FireIncidentSubsystem implements Runnable {
     private final String csvFile; // Path to the CSV input file
     private int outstandingFires = 0;
     private DatagramSocket socket;
+    long previousEventMs = -1;
 
     public FireIncidentSubsystem(String csvFile) {
         this.csvFile = csvFile;
@@ -55,7 +56,7 @@ public class FireIncidentSubsystem implements Runnable {
      * to the Scheduler subsystem.
      */
     @Override
-    public void run() {
+    public void run(){
         try {
             socket = new DatagramSocket(FIRE_INCIDENT_PORT);
             socket.setSoTimeout(500);
@@ -91,6 +92,18 @@ public class FireIncidentSubsystem implements Runnable {
                     System.out.println("[FIRE] Skipping header row");
                     continue;
                 }
+                long currentEventMs = event.getTimestamp().toEpochMilli();
+                if(previousEventMs >= 0){
+                    long delay = Math.min(currentEventMs - previousEventMs, 3000);
+                    if (delay > 0){
+                        try {
+                            Thread.sleep(delay);
+                        } catch (InterruptedException e){
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                }
+                previousEventMs = currentEventMs;
 
                 System.out.println("[FIRE] Read event: " + event);
 
