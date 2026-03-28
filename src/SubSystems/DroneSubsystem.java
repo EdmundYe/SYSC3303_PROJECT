@@ -237,11 +237,9 @@ public class DroneSubsystem implements Runnable {
         transition(DroneEvent.RETURN_COMPLETE);
         currentZoneId = null;
 
-        System.out.println("[DRONE " + droneId + "] Returning to base");
-
         // reset to IDLE after reporting DONE state
         state = DroneState.IDLE;
-        System.out.println("[DRONE " + droneId + "] Returning to base");
+        System.out.println("[DRONE " + droneId + "] Arrived at base");
     }
 
     private void travelToZone(int zoneId, long totalMs) throws InterruptedException, IOException{
