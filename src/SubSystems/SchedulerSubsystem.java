@@ -143,6 +143,7 @@ public class SchedulerSubsystem implements Runnable{
             case DRONE_POLL -> handleDronePoll(msg, address, port);
             case DRONE_STATUS -> handleDroneStatus(msg, address, port);
             case DRONE_DONE -> handleDroneDone(msg, address, port);
+            case DRONE_FAULT -> handleDroneFault(msg, address, port);
             default -> System.out.println("[SCHEDULER] Ignored message: " + msg);
         }
     }
@@ -175,7 +176,9 @@ public class SchedulerSubsystem implements Runnable{
         updateDroneEndpoint(drone, address, port);
 
         // only mark it available from poll if it is not already mid-mission
-        if (!drone.busy) {
+        // Also check if drone is not FAULTED/OFFLINE
+        if (!drone.busy && drone.lastKnownState != DroneState.FAULTED &&
+                drone.lastKnownState != DroneState.OFFLINE) {
             drone.available = true;
             drone.lastKnownState = DroneState.IDLE;
             drone.lastStatusTimeMs = System.currentTimeMillis();
@@ -213,7 +216,26 @@ public class SchedulerSubsystem implements Runnable{
 
         FireEvent completedEvent = drone.assignedEvent;
 
-        drone.markIdle();
+        if (status.getState() == DroneState.FAULTED) {
+            System.out.println("[SCHEDULER] Drone " + droneId + " completed task but remains FAULTED - NOT marking available");
+            drone.busy = false;
+            drone.lastKnownState = DroneState.FAULTED;
+            drone.available = false;
+            drone.assignedEvent = null;
+
+        } else if (status.getState() == DroneState.OFFLINE) {
+            System.out.println("[SCHEDULER] Drone " + droneId + " completed task but is OFFLINE - NOT marking available");
+            drone.busy = false;
+            drone.lastKnownState = DroneState.OFFLINE;
+            drone.available = false;
+            drone.assignedEvent = null;
+
+        } else {
+            // Normal case: mark idle and available
+            drone.markIdle();
+            drone.available = true;
+        }
+
         drone.remainingAgent = status.get_remaining_agent();
         drone.missionsCompleted++;
 
@@ -279,6 +301,12 @@ public class SchedulerSubsystem implements Runnable{
         double bestScore = Double.MAX_VALUE;
 
         for (DroneInfo drone : drones.values()) {
+            // Skip FAULTED/OFFLINE drones completely
+            if (drone.lastKnownState == DroneState.FAULTED ||
+                    drone.lastKnownState == DroneState.OFFLINE) {
+                continue;
+            }
+
             if(drone.isDispatchable()){
                 double timeToZone = drone.estimateSecondsToZone(requestedZone);
                 double score = timeToZone + drone.missionsCompleted * 10.0;
@@ -287,7 +315,8 @@ public class SchedulerSubsystem implements Runnable{
                     best = drone;
                 }
             }
-            if (drone.busy && drone.destinationZone != -1){
+
+            if (drone.busy && drone.destinationZone != -1 && drone.assignedEvent != null){
                 boolean passesThrough = ZoneMap.isOnPath(drone.destinationZone, requestedZone, 150);
                 boolean sameSeverity = event.getSeverity() == drone.assignedEvent.getSeverity();
                 if (passesThrough && sameSeverity){
@@ -313,8 +342,18 @@ public class SchedulerSubsystem implements Runnable{
                 "REQ-" + event.getTimestamp().toEpochMilli(),
                 DroneCommandOptions.DISPATCH,
                 event.getZoneId(),
-                event.getSeverity()
+                event.getSeverity(),
+                event.getFaultType(),
+                event.getFaultDelaySeconds()
         );
+
+        String faultInfo = (event.getFaultType() != FaultType.NONE) ?
+                " - Fault: " + event.getFaultType() +
+                        " (delay: " + event.getFaultDelaySeconds() + "s)" : "";
+
+        System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
+                + " to zone " + event.getZoneId()
+                + " (" + event.getSeverity() + ")" + faultInfo);
 
         Message taskMessage = Message.droneTask(drone.droneId, command);
         byte[] payload = taskMessage.toBytes();
@@ -333,10 +372,6 @@ public class SchedulerSubsystem implements Runnable{
         } catch (IOException e) {
             throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
         }
-
-        System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
-                + " to zone " + event.getZoneId()
-                + " (" + event.getSeverity() + ")");
     }
 
     // Fire subsystem currently expects an ACK after each FIRE_EVENT send
@@ -448,6 +483,67 @@ public class SchedulerSubsystem implements Runnable{
         }
     }
 
+    /**
+     * Handles DRONE_FAULT messages from drones
+     * Iteration 4: Processes fault notifications and prevents re-dispatch
+     *
+     * @param msg Message containing fault type
+     * @param address Address of the faulty drone
+     * @param port Port of the faulty drone
+     */
+    private void handleDroneFault(Message msg, InetAddress address, int port) {
+        int droneId = msg.get_source_id();
+        FaultType faultType = (FaultType) msg.getPayload();
+        String timestamp = getCurrentTimeFormatted();
+
+        System.out.println("[SCHEDULER] [" + timestamp + "] FAULT received from Drone " +
+                droneId + ": " + faultType);
+
+        DroneInfo drone = drones.get(droneId);
+        if (drone == null) {
+            System.out.println("[SCHEDULER] WARNING: Fault from unknown drone " + droneId);
+            return;
+        }
+
+        // Update drone state based on fault type
+        if (faultType == FaultType.NOZZLE_JAM) {
+            System.out.println("[SCHEDULER] [" + timestamp + "] Drone " + droneId +
+                    " is PERMANENTLY OFFLINE (NOZZLE_JAM)");
+            drone.available = false;
+            drone.busy = false;
+            drone.lastKnownState = DroneState.OFFLINE;
+
+        } else if (faultType == FaultType.DRONE_STUCK) {
+            System.out.println("[SCHEDULER] [" + timestamp + "] Drone " + droneId +
+                    " is FAULTED (DRONE_STUCK - temporary)");
+            drone.available = false;  // KEY: Mark as NOT available
+            drone.busy = false;
+            drone.lastKnownState = DroneState.FAULTED;  // KEY: Set state
+        }
+
+        // Reassign the task if any
+        if (drone.assignedEvent != null) {
+            System.out.println("[SCHEDULER] [" + timestamp + "] Reassigning task from Drone " + droneId);
+            pendingEvents.add(drone.assignedEvent);
+            drone.assignedEvent = null;
+        }
+
+        tryDispatchIfPossible();
+        refreshSchedulerState();
+    }
+
+    /**
+     * Helper method to get current time formatted for logging
+     * Format: HH:mm:ss.SSS
+     *
+     * @return Current timestamp as formatted string
+     */
+    private String getCurrentTimeFormatted() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.format.DateTimeFormatter formatter =
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+        return now.format(formatter);
+    }
 
     public static void main(String[] args) {
         SystemCounts counts = null;

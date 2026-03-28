@@ -227,7 +227,7 @@ public class GUI extends JFrame {
                 st.get_remaining_agent() != null ? st.get_remaining_agent() + "L" : "?"
         );
         droneAssignedZone.get(id).setText(
-                st.get_zone_id().toString() != null ? st.get_zone_id().toString() : "N/A"
+                st.get_zone_id() != null ? st.get_zone_id().toString() : "N/A"
         );
 
         // color the state label by what the drone is doing
@@ -237,6 +237,8 @@ public class GUI extends JFrame {
             case EN_ROUTE -> stateLabel.setForeground(Color.BLUE);
             case DROPPING -> stateLabel.setForeground(Color.ORANGE);
             case RETURNING -> stateLabel.setForeground(new Color(0, 150, 0));
+            case FAULTED -> stateLabel.setForeground(Color.RED);
+            case OFFLINE -> stateLabel.setForeground(new Color(64, 0, 0));
             default -> stateLabel.setForeground(Color.BLACK);
         }
     }

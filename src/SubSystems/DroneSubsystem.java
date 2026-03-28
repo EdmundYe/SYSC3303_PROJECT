@@ -208,7 +208,21 @@ public class DroneSubsystem implements Runnable {
         transition(DroneEvent.TASK_RECEIVED);
 
         long outboundMs = computeTravelTimeMs((int) ZoneMap.distanceFromBase(currentZoneId));
+
+        // If fault information is present in command, schedule the fault
+        if (command.getFaultType() != null && command.getFaultType() != FaultType.NONE) {
+            scheduleAndInjectFault(command, outboundMs);
+        }
+
         travelToZone(currentZoneId, outboundMs);
+
+        if (state == DroneState.FAULTED || state == DroneState.OFFLINE) {
+            String timestamp = getCurrentTimeFormatted();
+            System.out.println("[DRONE " + droneId + "] [" + timestamp + "] Aborting mission - drone is in " +
+                    state + " state. Not completing task for zone " + currentZoneId);
+            currentZoneId = null;
+            return; // Exit without dropping or returning
+        }
 
         int targetZone = currentZoneId;
         long dropMs = computeDropTimeMs(amountUsed);
@@ -237,11 +251,147 @@ public class DroneSubsystem implements Runnable {
         transition(DroneEvent.RETURN_COMPLETE);
         currentZoneId = null;
 
-        System.out.println("[DRONE " + droneId + "] Returning to base");
-
-        // reset to IDLE after reporting DONE state
+        // Reset to IDLE state
         state = DroneState.IDLE;
-        System.out.println("[DRONE " + droneId + "] Returning to base");
+        System.out.println("[DRONE " + droneId + "] Task completed successfully");
+    }
+
+    /**
+     * Schedules fault injection for this drone
+     * Iteration 4: Handles both temporary (DRONE_STUCK) and hard (NOZZLE_JAM) faults
+     *
+     * @param command The drone command with fault information
+     * @param travelTimeMs Total travel time to target zone
+     */
+    private void scheduleAndInjectFault(DroneCommand command, long travelTimeMs) {
+        // Calculate when to trigger the fault
+        long faultDelayMs = command.getFaultDelaySeconds() * 1000L;
+
+        String timestamp = getCurrentTimeFormatted();
+        System.out.println("[DRONE " + droneId + "] [" + timestamp + "] Fault injection scheduled: " +
+                command.getFaultType() + " in " + command.getFaultDelaySeconds() + " seconds");
+
+        // Create a separate thread to inject fault after specified delay
+        // This runs concurrently with the main command execution
+        Thread faultThread = new Thread(() -> {
+            try {
+                // Wait for the specified delay
+                Thread.sleep(faultDelayMs);
+
+                // Trigger fault based on type
+                switch (command.getFaultType()) {
+                    case DRONE_STUCK:
+                        handleDroneStuck();
+                        break;
+
+                    case NOZZLE_JAM:
+                        handleNozzleJam();
+                        break;
+
+                    case PACKET_LOSS:
+                        // Packet loss is handled at transport layer
+                        // No action needed in drone logic
+                        break;
+
+                    case NONE:
+                    default:
+                        // No fault
+                        break;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        // Start the fault injection thread
+        faultThread.setName("Fault-Injection-Drone-" + droneId);
+        faultThread.start();
+    }
+
+    /**
+     * Handles DRONE_STUCK fault (temporary, recoverable)
+     * The drone appears to be stuck mid-flight
+     *
+     * Actions:
+     * 1. Transition to FAULTED state
+     * 2. Send fault notification to scheduler
+     * 3. Scheduler will reassign task to another drone
+     */
+    private void handleDroneStuck() {
+        String timestamp = getCurrentTimeFormatted();
+        System.out.println("[DRONE " + droneId + "] [" + timestamp + "] STUCK MID-FLIGHT DETECTED!");
+
+        // Update drone state to FAULTED
+        state = DroneState.FAULTED;
+        System.out.println("[DRONE " + droneId + "] Transitioned to FAULTED state");
+
+        // Send fault notification to scheduler
+        try {
+            sendFaultNotification(FaultType.DRONE_STUCK);
+        } catch (IOException e) {
+            System.err.println("[DRONE " + droneId + "] Failed to send fault notification: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Handles NOZZLE_JAM fault (hard fault, permanent)
+     * The nozzle is permanently jammed - drone is offline
+     *
+     * Actions:
+     * 1. Transition to OFFLINE state (permanent)
+     * 2. Send hard fault notification to scheduler
+     * 3. Scheduler must remove drone from available pool
+     */
+    private void handleNozzleJam() {
+        String timestamp = getCurrentTimeFormatted();
+        System.out.println("[DRONE " + droneId + "] [" + timestamp + "] NOZZLE JAM DETECTED (HARD FAULT)!");
+
+        // Update drone state to OFFLINE (permanent)
+        state = DroneState.OFFLINE;
+        System.out.println("[DRONE " + droneId + "] Transitioned to OFFLINE state - PERMANENTLY DOWN");
+
+        // Send hard fault notification to scheduler
+        try {
+            sendFaultNotification(FaultType.NOZZLE_JAM);
+        } catch (IOException e) {
+            System.err.println("[DRONE " + droneId + "] Failed to send hard fault notification: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sends fault notification message to the scheduler
+     * Iteration 4: Communicates fault status to scheduler for reassignment
+     *
+     * @param faultType Type of fault that occurred
+     * @throws IOException If network communication fails
+     */
+    private void sendFaultNotification(FaultType faultType) throws IOException {
+        // Create fault notification message
+        Message faultMsg = new Message(MessageType.DRONE_FAULT, droneId, faultType);
+        byte[] data = faultMsg.toBytes();
+
+        // Send to scheduler
+        DatagramPacket packet = new DatagramPacket(
+                data, data.length,
+                InetAddress.getByName("localhost"), SCHEDULER_PORT
+        );
+        socket.send(packet);
+
+        String timestamp = getCurrentTimeFormatted();
+        System.out.println("[DRONE " + droneId + "] [" + timestamp + "] Fault notification sent to scheduler: " + faultType);
+    }
+
+    /**
+     * Helper method to get current time formatted for logging
+     * Format: HH:mm:ss.SSS (hours:minutes:seconds.milliseconds)
+     *
+     * @return Current timestamp as formatted string
+     */
+    private String getCurrentTimeFormatted() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.format.DateTimeFormatter formatter =
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+        return now.format(formatter);
     }
 
     private void travelToZone(int zoneId, long totalMs) throws InterruptedException, IOException{
