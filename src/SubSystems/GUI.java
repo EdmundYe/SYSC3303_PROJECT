@@ -1,9 +1,6 @@
 package SubSystems;
 
-import common.DroneStatus;
-import common.FireEvent;
-import common.Message;
-import common.SystemCounts;
+import common.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -153,6 +150,11 @@ public class GUI extends JFrame {
                 firesLabel.setText("Active fires: " + zones.size());
                 //appendToConsole("FIRE_OUT: " + ev);
             }
+
+            case DRONE_FAULT -> {
+                DroneFault fault = (DroneFault) msg.getPayload();
+                System.out.println("[GUI] DRONE_FAULT: " + fault);
+            }
         }
         repaint();
     }
@@ -226,9 +228,8 @@ public class GUI extends JFrame {
         droneAgent.get(id).setText(
                 st.get_remaining_agent() != null ? st.get_remaining_agent() + "L" : "?"
         );
-        droneAssignedZone.get(id).setText(
-                st.get_zone_id().toString() != null ? st.get_zone_id().toString() : "N/A"
-        );
+        Integer zoneId = st.get_zone_id();
+        droneAssignedZone.get(id).setText(zoneId != null ? zoneId.toString() : "N/A");
 
         // color the state label by what the drone is doing
         JLabel stateLabel = droneState.get(id);
@@ -237,6 +238,8 @@ public class GUI extends JFrame {
             case EN_ROUTE -> stateLabel.setForeground(Color.BLUE);
             case DROPPING -> stateLabel.setForeground(Color.ORANGE);
             case RETURNING -> stateLabel.setForeground(new Color(0, 150, 0));
+            case FAULTED -> stateLabel.setForeground(Color.RED);
+            case OFFLINE -> stateLabel.setForeground(Color.BLACK);
             default -> stateLabel.setForeground(Color.BLACK);
         }
     }

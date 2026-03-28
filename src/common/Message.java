@@ -4,7 +4,7 @@ import java.io.*;
 import java.util.Objects;
 
 // This class is the container for any message that is sent between the 3 subsystems
-// payload variable contains the type: FireEvent, DroneCommand, DroneStatus, etc...
+// payload variable contains the type: FireEvent, DroneCommand, DroneStatus, DroneFault, etc...
 public final class Message implements Serializable {
     private final MessageType type;
     private final int source_id;      // drone_id or 0 for scheduler or fireIncident
@@ -79,6 +79,10 @@ public final class Message implements Serializable {
 
     public static Message droneDone(int droneId, DroneStatus status) {
         return new Message(MessageType.DRONE_DONE, droneId, status);
+    }
+
+    public static Message droneFault(int droneId, DroneFault fault) {
+        return new Message(MessageType.DRONE_FAULT, droneId, fault);
     }
 
     public static Message fireOut(FireEvent event) {

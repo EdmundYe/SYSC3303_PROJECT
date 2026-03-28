@@ -6,6 +6,7 @@ DRONE_POLL    = Drone -> Scheduler ("any work?")
 DRONE_TASK    = Scheduler -> Drone
 DRONE_STATUS  = Drone -> Scheduler (state updates)
 DRONE_DONE    = Drone -> Scheduler (mission completion)
+DRONE_FAULT   = Drone -> Scheduler (fault notification)
 FIRE_OUT      = Scheduler -> FireIncident (extinguished notification)
 */
 
@@ -15,5 +16,6 @@ public enum MessageType {
     DRONE_TASK,
     DRONE_STATUS,
     DRONE_DONE,
+    DRONE_FAULT,
     FIRE_OUT
 }

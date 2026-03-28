@@ -53,7 +53,10 @@ public class DroneInfo {
     }
 
     public boolean isDispatchable() {
-        return available && !busy && listenAddress != null;
+        return available
+                && !busy
+                && listenAddress != null
+                && lastKnownState != DroneState.OFFLINE;
     }
 
     public void markBusy(FireEvent event) {
@@ -71,8 +74,18 @@ public class DroneInfo {
         this.busy = false;
         this.assignedEvent = null;
         this.currentZoneId = null;
-        this.currentZoneId = -1;
+        this.destinationZone = -1;
         this.lastKnownState = DroneState.IDLE;
+        this.lastStatusTimeMs = System.currentTimeMillis();
+    }
+
+    public void markOffline() {
+        this.available = false;
+        this.busy = false;
+        this.assignedEvent = null;
+        this.currentZoneId = null;
+        this.destinationZone = -1;
+        this.lastKnownState = DroneState.OFFLINE;
         this.lastStatusTimeMs = System.currentTimeMillis();
     }
 
@@ -86,6 +99,10 @@ public class DroneInfo {
 
         if (status.getState() == DroneState.IDLE || status.getState() == DroneState.DONE) {
             this.available = true;
+            this.busy = false;
+            this.destinationZone = -1;
+        } else if (status.getState() == DroneState.OFFLINE) {
+            this.available = false;
             this.busy = false;
             this.destinationZone = -1;
         } else {

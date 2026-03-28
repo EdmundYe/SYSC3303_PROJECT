@@ -89,6 +89,15 @@ class SchedulerUdpTest {
         DroneCommand c2 = (DroneCommand) d2.getPayload();
         DroneCommand c3 = (DroneCommand) d3.getPayload();
 
+        assertEquals(FaultType.NONE, c1.getFaultType());
+        assertEquals(0, c1.getFaultDelaySeconds());
+
+        assertEquals(FaultType.NONE, c2.getFaultType());
+        assertEquals(0, c2.getFaultDelaySeconds());
+
+        assertEquals(FaultType.NONE, c3.getFaultType());
+        assertEquals(0, c3.getFaultDelaySeconds());
+
         // Scheduler tie-breaker is missionsCompleted, then lower droneId.
         assertEquals(3, c1.get_zone_id());
         assertEquals(Severity.HIGH, c1.getSeverity());
@@ -115,10 +124,10 @@ class SchedulerUdpTest {
         registerDrone(2, drone2Socket);
         registerDrone(3, drone3Socket);
 
-        sendFireLine("14:03:15,3,FIRE_DETECTED,HIGH");
-        sendFireLine("14:03:15,2,FIRE_DETECTED,LOW");
-        sendFireLine("14:03:15,1,FIRE_DETECTED,MODERATE");
-        sendFireLine("14:03:15,4,FIRE_DETECTED,HIGH");
+        sendFireLine("14:03:15,3,FIRE_DETECTED,HIGH,NONE,0");
+        sendFireLine("14:03:15,2,FIRE_DETECTED,LOW,NONE,0");
+        sendFireLine("14:03:15,1,FIRE_DETECTED,MODERATE,NONE,0");
+        sendFireLine("14:03:15,4,FIRE_DETECTED,HIGH,NONE,0");
 
         for (int i = 0; i < 4; i++) {
             assertFireAck(receiveMessage(fireSocket));
@@ -145,6 +154,9 @@ class SchedulerUdpTest {
         DroneCommand cmd = (DroneCommand) nextTask.getPayload();
         assertEquals(4, cmd.get_zone_id());
         assertEquals(Severity.HIGH, cmd.getSeverity());
+
+        assertEquals(FaultType.NONE, cmd.getFaultType());
+        assertEquals(0, cmd.getFaultDelaySeconds());
 
         assertEquals(0, getPendingQueueSize());
 

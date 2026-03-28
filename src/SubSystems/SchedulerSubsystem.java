@@ -1,7 +1,6 @@
 package SubSystems;
 
 import MessageTransport.MessageTransporter;
-import MessageTransport.SendAddress;
 import common.*;
 
 import javax.swing.*;
@@ -12,7 +11,7 @@ import java.util.Queue;
 import java.net.*;
 import java.io.*;
 
-public class SchedulerSubsystem implements Runnable{
+public class SchedulerSubsystem implements Runnable {
 
     private MessageTransporter transport;
 
@@ -21,32 +20,16 @@ public class SchedulerSubsystem implements Runnable{
     private static final String FIRE_INCIDENT_HOST = "localhost";
     private static final int BUFFER_SIZE = 4096;
     private static final int DEFAULT_DRONE_AGENT_CAPACITY = 100;
-    private static final int GUI_PORT = 8000;
-    private static final String GUI_HOST = "localhost";
-
 
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
 
     DatagramSocket receiveSocket;
-
     DatagramSocket sendSocket;
 
-    // private final int SINGLE_DRONE_ID = 1;
-
-    // private FireEvent activeEvent = null;
-
-    //for gui
     private SystemCounts counts;
-
-    // Scheduler state machine
     private SchedulerState schedulerState = SchedulerState.IDLE;
 
-//    public SchedulerSubsystem(MessageTransporter transport) {
-//        this.transport = transport;
-//    }
-
-    // implement SubSystems.GUI running inside scheduler
     private GUI gui;
 
     public SchedulerSubsystem(SystemCounts counts) {
@@ -69,45 +52,24 @@ public class SchedulerSubsystem implements Runnable{
     }
 
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
-        try{
+        try {
             receiveSocket = new DatagramSocket(6000);
             sendSocket = new DatagramSocket();
         } catch (SocketException e) {
             e.printStackTrace();
         }
-        //this.transport = transport;
         this.counts = counts;
     }
 
-    // THIS IS DEPRECATED DO NOT USE, ONLY HERE FOR THE PREVIOUS TESTS
     public SchedulerSubsystem(MessageTransporter transport) {
-        try{
+        try {
             receiveSocket = new DatagramSocket(6000);
             sendSocket = new DatagramSocket();
         } catch (SocketException e) {
             e.printStackTrace();
         }
-        //this.transport = transport;
     }
-//
-//    @Override
-//    public void run() {
-//        System.out.println("[SCHEDULER] Started");
-//        try {
-//            while (!Thread.currentThread().isInterrupted()) {
-//                Message msg = transport.receive(SendAddress.SCHEDULER);
-//                handle(msg);
-//            }
-//        } catch (InterruptedException e) {
-//            Thread.currentThread().interrupt();
-//        }
-//        System.out.println("[SCHEDULER] Stopped");
-//    }
 
-    /**
-     * Scheduler listens on UDP port 6000 and reacts to messages from
-     * FireIncidentSubsystem and DroneSubsystem.
-     */
     public void run() {
         System.out.println("[SCHEDULER] Scheduler started on port " + SCHEDULER_PORT);
 
@@ -143,6 +105,7 @@ public class SchedulerSubsystem implements Runnable{
             case DRONE_POLL -> handleDronePoll(msg, address, port);
             case DRONE_STATUS -> handleDroneStatus(msg, address, port);
             case DRONE_DONE -> handleDroneDone(msg, address, port);
+            case DRONE_FAULT -> handleDroneFault(msg, address, port);
             default -> System.out.println("[SCHEDULER] Ignored message: " + msg);
         }
     }
@@ -174,8 +137,7 @@ public class SchedulerSubsystem implements Runnable{
         DroneInfo drone = getOrCreateDrone(droneId);
         updateDroneEndpoint(drone, address, port);
 
-        // only mark it available from poll if it is not already mid-mission
-        if (!drone.busy) {
+        if (!drone.busy && drone.lastKnownState != DroneState.OFFLINE) {
             drone.available = true;
             drone.lastKnownState = DroneState.IDLE;
             drone.lastStatusTimeMs = System.currentTimeMillis();
@@ -229,6 +191,49 @@ public class SchedulerSubsystem implements Runnable{
         refreshSchedulerState();
     }
 
+    private void handleDroneFault(Message msg, InetAddress address, int port) {
+        DroneFault fault = (DroneFault) msg.getPayload();
+        int droneId = msg.get_source_id();
+
+        sendToGUI(msg);
+        System.out.println("[SCHEDULER] Drone fault reported: " + fault);
+
+        DroneInfo drone = getOrCreateDrone(droneId);
+        updateDroneEndpoint(drone, address, port);
+
+        FireEvent failedEvent = drone.assignedEvent;
+        if (failedEvent != null) {
+            FireEvent retryEvent = new FireEvent(
+                    failedEvent.getTimestamp(),
+                    failedEvent.getZoneId(),
+                    failedEvent.getEventType(),
+                    failedEvent.getSeverity(),
+                    FaultType.NONE,
+                    0
+            );
+            pendingEvents.add(retryEvent);
+            System.out.println("[SCHEDULER] Requeued clean event for zone " + failedEvent.getZoneId());
+        }
+
+        drone.assignedEvent = null;
+        drone.destinationZone = -1;
+        drone.currentZoneId = null;
+        drone.lastStatusTimeMs = System.currentTimeMillis();
+
+        if (fault.getFaultType() == FaultType.NOZZLE_JAM) {
+            drone.markOffline();
+            System.out.println("[SCHEDULER] Drone " + droneId + " marked OFFLINE");
+        } else {
+            drone.available = false;
+            drone.busy = true;
+            drone.lastKnownState = DroneState.FAULTED;
+            System.out.println("[SCHEDULER] Drone " + droneId + " marked temporarily FAULTED");
+        }
+
+        tryDispatchIfPossible();
+        refreshSchedulerState();
+    }
+
     private DroneInfo getOrCreateDrone(int droneId) {
         DroneInfo drone = drones.get(droneId);
         if (drone == null) {
@@ -245,7 +250,6 @@ public class SchedulerSubsystem implements Runnable{
         drone.setListenPort(port);
     }
 
-    //keep dispatching while there is pending work and at least one dispatchable drone
     private void tryDispatchIfPossible() {
         refreshSchedulerState();
 
@@ -268,18 +272,13 @@ public class SchedulerSubsystem implements Runnable{
         refreshSchedulerState();
     }
 
-    /**
-     1. Only dispatch drones that are reachable and available
-     2. Prefer the drone with fewer completed missions
-     3. Tie-break by lower drone ID
-     */
     private DroneInfo findBestDroneForNextEvent(FireEvent event) {
         int requestedZone = event.getZoneId();
         DroneInfo best = null;
         double bestScore = Double.MAX_VALUE;
 
         for (DroneInfo drone : drones.values()) {
-            if(drone.isDispatchable()){
+            if (drone.isDispatchable()) {
                 double timeToZone = drone.estimateSecondsToZone(requestedZone);
                 double score = timeToZone + drone.missionsCompleted * 10.0;
                 if (score < bestScore) {
@@ -287,13 +286,20 @@ public class SchedulerSubsystem implements Runnable{
                     best = drone;
                 }
             }
-            if (drone.busy && drone.destinationZone != -1){
+
+            if (drone.busy
+                    && drone.destinationZone != -1
+                    && drone.assignedEvent != null
+                    && drone.lastKnownState != DroneState.OFFLINE
+                    && drone.lastKnownState != DroneState.FAULTED) {
+
                 boolean passesThrough = ZoneMap.isOnPath(drone.destinationZone, requestedZone, 150);
                 boolean sameSeverity = event.getSeverity() == drone.assignedEvent.getSeverity();
-                if (passesThrough && sameSeverity){
+
+                if (passesThrough && sameSeverity) {
                     double timeToZone = drone.estimateSecondsToZone(requestedZone);
                     double score = timeToZone;
-                    if (score < bestScore){
+                    if (score < bestScore) {
                         bestScore = score;
                         best = drone;
                     }
@@ -313,7 +319,9 @@ public class SchedulerSubsystem implements Runnable{
                 "REQ-" + event.getTimestamp().toEpochMilli(),
                 DroneCommandOptions.DISPATCH,
                 event.getZoneId(),
-                event.getSeverity()
+                event.getSeverity(),
+                event.getFaultType(),
+                event.getFaultDelaySeconds()
         );
 
         Message taskMessage = Message.droneTask(drone.droneId, command);
@@ -329,17 +337,16 @@ public class SchedulerSubsystem implements Runnable{
         try {
             sendSocket.send(packet);
             sendToGUI(taskMessage);
-
         } catch (IOException e) {
             throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
         }
 
         System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
                 + " to zone " + event.getZoneId()
-                + " (" + event.getSeverity() + ")");
+                + " (" + event.getSeverity()
+                + ", fault=" + event.getFaultType() + ")");
     }
 
-    // Fire subsystem currently expects an ACK after each FIRE_EVENT send
     private void sendAckToFireIncident(InetAddress address, int port) {
         Message ack = new Message(MessageType.FIRE_EVENT, 0, null);
         byte[] ackBytes = ack.toBytes();
@@ -359,8 +366,6 @@ public class SchedulerSubsystem implements Runnable{
         }
     }
 
-
-    // Notify the Fire Incident subsystem that a zone has been serviced
     private void notifyFireOut(FireEvent event) {
         Message out = Message.fireOut(event);
         byte[] bytes = out.toBytes();
@@ -398,15 +403,6 @@ public class SchedulerSubsystem implements Runnable{
         return false;
     }
 
-    /**
-     * IDLE:
-        no pending incidents and no drones currently working
-     * SENDING_DRONES:
-        there is pending work and at least one dispatchable drone
-     * WAITING_FOR_DRONES:
-        unresolved work still exists, but no drone can be dispatched right now,
-        or drones are still in the field
-     */
     private void refreshSchedulerState() {
         SchedulerState oldState = schedulerState;
 
@@ -427,10 +423,6 @@ public class SchedulerSubsystem implements Runnable{
         }
     }
 
-    /**
-     * Keeps your enum-based transition style for logging/traceability.
-     * The actual effective Iteration 3 state is refreshed from real system conditions.
-     */
     private void transition(SchedulerEvent event) {
         SchedulerState before = schedulerState;
         schedulerState = schedulerState.next(event);
@@ -443,15 +435,13 @@ public class SchedulerSubsystem implements Runnable{
     }
 
     private void sendToGUI(Message msg) {
-        if(gui != null){
-            SwingUtilities.invokeLater(()-> gui.handleIncomingMessage(msg));
+        if (gui != null) {
+            SwingUtilities.invokeLater(() -> gui.handleIncomingMessage(msg));
         }
     }
 
-
     public static void main(String[] args) {
         SystemCounts counts = null;
-
         Thread scheduler = new Thread(new SchedulerSubsystem(counts));
         scheduler.start();
     }
