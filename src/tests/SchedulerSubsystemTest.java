@@ -37,7 +37,7 @@ class SchedulerSubsystemTest {
         Thread schedulerThread = new Thread(testScheduler);
         schedulerThread.start();
         try{
-            FireEvent testEvent = new FireEvent(timestamp, 3, testType, testSeverity);
+            FireEvent testEvent = new FireEvent(timestamp, 3, testType, testSeverity, FaultType.NONE, 0);
             testTransporter.send(SendAddress.SCHEDULER, Message.fireEvent(testEvent));
             Thread.sleep(100);
 
@@ -69,7 +69,7 @@ class SchedulerSubsystemTest {
         Thread schedulerThread = new Thread(testScheduler);
         schedulerThread.start();
         try{
-            FireEvent testEvent = new FireEvent(timestamp, 0, testType, testSeverity);
+            FireEvent testEvent = new FireEvent(timestamp, 0, testType, testSeverity, FaultType.NONE, 0);
             testTransporter.send(SendAddress.SCHEDULER, Message.fireEvent(testEvent));
             testTransporter.send(SendAddress.SCHEDULER, Message.dronePoll(1));
 

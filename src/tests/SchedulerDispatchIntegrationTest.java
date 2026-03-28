@@ -35,7 +35,7 @@ class SchedulerDispatchIntegrationTest {
 
         try {
             // create a fire event and send to scheduler
-            FireEvent fe = new FireEvent(Instant.now(), 42, FireEventType.FIRE_DETECTED, Severity.MODERATE);
+            FireEvent fe = new FireEvent(Instant.now(), 42, FireEventType.FIRE_DETECTED, Severity.MODERATE, FaultType.NONE, 0);
             mt.send(SendAddress.SCHEDULER, Message.fireEvent(fe));
 
             // simulate drone polling
@@ -64,8 +64,8 @@ class SchedulerDispatchIntegrationTest {
         schedThread.start();
 
         try {
-            FireEvent fe1 = new FireEvent(Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW);
-            FireEvent fe2 = new FireEvent(Instant.now(), 2, FireEventType.FIRE_DETECTED, Severity.LOW);
+            FireEvent fe1 = new FireEvent(Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW, FaultType.NONE, 0);
+            FireEvent fe2 = new FireEvent(Instant.now(), 2, FireEventType.FIRE_DETECTED, Severity.LOW, FaultType.NONE, 0);
 
             mt.send(SendAddress.SCHEDULER, Message.fireEvent(fe1));
             mt.send(SendAddress.SCHEDULER, Message.fireEvent(fe2));
