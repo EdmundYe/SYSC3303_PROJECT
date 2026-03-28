@@ -247,9 +247,17 @@ public class DroneSubsystem implements Runnable {
         return true;
     }
 
+<<<<<<< HEAD
     private boolean travelToZone(int zoneId, long totalMs, DroneCommand command)
             throws InterruptedException, IOException {
 
+=======
+    /*
+    Method for tracking drone movement
+
+     */
+    private void travelToZone(int zoneId, long totalMs) throws InterruptedException, IOException{
+>>>>>>> b6d95c3233794da706f4d76a18ccb37075d077c3
         int[] dest = ZoneMap.get(zoneId);
         long steps = 10;
         long stepMs = Math.max(1, totalMs / steps);
