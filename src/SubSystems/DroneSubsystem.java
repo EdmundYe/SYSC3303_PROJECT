@@ -242,6 +242,10 @@ public class DroneSubsystem implements Runnable {
         System.out.println("[DRONE " + droneId + "] Arrived at base");
     }
 
+    /*
+    Method for tracking drone movement
+
+     */
     private void travelToZone(int zoneId, long totalMs) throws InterruptedException, IOException{
         int[] dest = ZoneMap.get(zoneId);
         long steps = 10;
