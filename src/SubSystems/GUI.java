@@ -1,3 +1,5 @@
+package SubSystems;
+
 import common.DroneStatus;
 import common.FireEvent;
 import common.Message;
@@ -22,20 +24,12 @@ public class GUI extends JFrame {
     private final Map<Integer, JPanel> zonePanels = new HashMap<>();
     private final Map<Integer, JLabel> zoneInfoLabels = new HashMap<>();
 
-    private DatagramSocket sock;
 
     public GUI(SystemCounts counts) {
         setTitle("Automated Drone Fire Response System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 900);
         setLocationRelativeTo(null);
-
-        try {
-            sock = new DatagramSocket(8000);
-            System.out.println("[GUI] listening on port 8000");
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to bind GUI socket", e);
-        }
 
         JPanel root = new JPanel(new BorderLayout(10, 10));
         root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
@@ -80,27 +74,6 @@ public class GUI extends JFrame {
             dronesLabel.setText("Drones busy: " + counts.getBusyDrones() + " / " + counts.getTotalDrones());
         });
         t.start();
-
-
-        new Thread(() -> {
-            byte[] buf = new byte[4096];
-                while (true) {
-                    try{
-                        DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                        sock.receive(packet);
-                        System.out.println("[GUI] raw packet received, len=" + packet.getLength());
-                        Message msg = Message.fromBytes(
-                                Arrays.copyOf(packet.getData(), packet.getLength())
-                        );
-                        System.out.println("[GUI] decoded type=" + msg.getType()
-                                + ", payload=" + msg.getPayload());
-                        SwingUtilities.invokeLater(() -> handleIncomingMessage(msg));
-                    }
-                    catch (Exception e){
-                        e.printStackTrace();
-                    }
-                }
-        }).start();
     }
 
     private JPanel makeZoneCell(String label, int zoneId) {

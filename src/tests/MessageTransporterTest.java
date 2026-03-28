@@ -15,7 +15,7 @@ class MessageTransporterTest {
     @Deprecated
     void testSendReceiveSingleMessage() throws Exception {
         MessageTransporter mt = new MessageTransporter();
-        FireEvent fe = new FireEvent(java.time.Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW);
+        FireEvent fe = new FireEvent(java.time.Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW, FaultType.NONE, 0);
         Message m = Message.fireEvent(fe);
 
         mt.send(SendAddress.SCHEDULER, m);
@@ -32,8 +32,8 @@ class MessageTransporterTest {
     @Deprecated
     void testQueueOrderPreserved() throws Exception {
         MessageTransporter mt = new MessageTransporter();
-        Message m1 = Message.fireEvent(new FireEvent(java.time.Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW));
-        Message m2 = Message.fireEvent(new FireEvent(java.time.Instant.now(), 2, FireEventType.FIRE_DETECTED, Severity.MODERATE));
+        Message m1 = Message.fireEvent(new FireEvent(java.time.Instant.now(), 1, FireEventType.FIRE_DETECTED, Severity.LOW, FaultType.NONE, 0));
+        Message m2 = Message.fireEvent(new FireEvent(java.time.Instant.now(), 2, FireEventType.FIRE_DETECTED, Severity.MODERATE, FaultType.NONE, 0));
 
         mt.send(SendAddress.SCHEDULER, m1);
         mt.send(SendAddress.SCHEDULER, m2);

@@ -2,7 +2,7 @@ package common;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-//class to track values for GUI
+//class to track values for SubSystems.GUI
 public final class SystemCounts {
     private final AtomicInteger activeFires = new AtomicInteger(0);
     private final AtomicInteger totalDrones = new AtomicInteger(0);
