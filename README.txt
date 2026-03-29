@@ -40,7 +40,11 @@ Derrick:
 -implemented faults to drones, drone_stuck being a short pause and return to base, and nozzle being an offline return to base unusable
 
 Asaad:
-
+- Added the following tests:
+- Unit tests for drone mission execution and state transitions
+- Unit tests for scheduler queueing, dispatching, and reassignment logic
+- Unit tests for fault injection handling
+- Integration tests for main use case flow across all subsystems under normal and faulty conditions
 
 Edmund:
 - Implemented dynamic drone scheduling
