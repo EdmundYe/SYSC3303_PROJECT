@@ -247,7 +247,10 @@ public class DroneSubsystem implements Runnable {
         return true;
     }
 
-    private boolean travelToZone(int zoneId, long totalMs, DroneCommand command) throws InterruptedException, IOException {
+
+    private boolean travelToZone(int zoneId, long totalMs, DroneCommand command)
+            throws InterruptedException, IOException {
+
         int[] dest = ZoneMap.get(zoneId);
         long steps = 10;
         long stepMs = Math.max(1, totalMs / steps);
