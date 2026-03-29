@@ -186,7 +186,7 @@ public class DroneSubsystem implements Runnable {
 
     private boolean executeCommand(DroneCommand command) throws InterruptedException, IOException {
         currentZoneId = command.get_zone_id();
-        int amountUsed = agentUsageForSeverity(command.getSeverity());
+        int amountUsed = command.getSeverity().requiredAgentLitres();
 
         transition(DroneEvent.TASK_RECEIVED);
 
@@ -347,14 +347,6 @@ public class DroneSubsystem implements Runnable {
         double timeAccelerate = peakSpeed / ACCELERATION;
         double timeDecelerate = peakSpeed / DECELERATION;
         return Math.max(1, (long) Math.ceil((timeAccelerate + timeDecelerate) * 1000));
-    }
-
-    private int agentUsageForSeverity(Severity severity) {
-        return switch (severity) {
-            case LOW -> 10;
-            case MODERATE -> 20;
-            case HIGH -> 30;
-        };
     }
 
     private void transition(DroneEvent event) {
