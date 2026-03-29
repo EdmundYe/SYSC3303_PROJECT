@@ -3,12 +3,12 @@ package SubSystems;
 import common.*;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import java.awt.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.List;
 
 public class GUI extends JFrame {
 
@@ -18,17 +18,19 @@ public class GUI extends JFrame {
     private final Map<Integer, JLabel> droneState = new HashMap<>();
     private final Map<Integer, JLabel> dronePos = new HashMap<>();
     private final Map<Integer, JLabel> droneAgent = new HashMap<>();
-    private final Map<Integer, JLabel> droneAssignedZone = new HashMap<>();
-    private final Map<Integer, FireEvent> zones = new HashMap<>();
+    private final Map <Integer, JLabel> droneAssignedZone = new HashMap<>();
+    private final Map <Integer, JLabel> droneFaultType = new HashMap<>();
+    private final Map<Integer, List<FireEvent>> zones = new HashMap<>();
     private final Map<Integer, DroneStatus> drones = new HashMap<>();
     private final Map<Integer, JPanel> zonePanels = new HashMap<>();
     private final Map<Integer, JLabel> zoneInfoLabels = new HashMap<>();
+    private final Map<Integer, FaultType> droneFault = new HashMap<>();
 
 
     public GUI(SystemCounts counts) {
         setTitle("Automated Drone Fire Response System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1400, 1000);
+        setSize(1600, 1000);
         setLocationRelativeTo(null);
 
         JPanel root = new JPanel(new BorderLayout(10, 10));
@@ -52,15 +54,16 @@ public class GUI extends JFrame {
         dronePanel.setLayout(new BoxLayout(dronePanel, BoxLayout.Y_AXIS));
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
-        sidebar.setPreferredSize(new Dimension(450, 0));
+        sidebar.setPreferredSize(new Dimension(575, 0));
         sidebar.setBorder(BorderFactory.createTitledBorder("Drone Status"));
         // header
-        JPanel header = new JPanel(new GridLayout(1, 4, 0, 0));
+        JPanel header = new JPanel(new GridLayout(1, 6, 0, 0));
         header.add(boldLabel("Drone"));
         header.add(boldLabel("State"));
         header.add(boldLabel("Position"));
         header.add(boldLabel("Agent"));
         header.add(boldLabel("Assigned Zone"));
+        header.add(boldLabel("Faults"));
         header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
         header.setAlignmentX(Component.LEFT_ALIGNMENT);
         sidebar.add(header);
@@ -115,7 +118,8 @@ public class GUI extends JFrame {
             case DRONE_STATUS -> {
                 DroneStatus st = (DroneStatus) msg.getPayload();
                 drones.put(st.get_drone_id(), st);
-                updateDroneRow(st);
+                FaultType lastFault = droneFault.getOrDefault(st.get_drone_id(), FaultType.NONE);
+                updateDroneRow(st, FaultType.NONE);
 
                 long busy = drones.values().stream()
                         .filter(d -> d.getState() != common.DroneState.IDLE)
@@ -131,29 +135,50 @@ public class GUI extends JFrame {
             case DRONE_DONE -> {
                 DroneStatus st = (DroneStatus) msg.getPayload();
                 drones.put(st.get_drone_id(), st);
-                updateDroneRow(st);
+                FaultType lastFault = droneFault.getOrDefault(st.get_drone_id(), FaultType.NONE);
+                updateDroneRow(st, FaultType.NONE);
             }
             case FIRE_EVENT -> {
                 if(!(msg.getPayload() instanceof FireEvent ev)){
-                    //appendToConsole("Ignored malformed FIRE_EVENT " + msg);
                     break;
                 }
-                zones.put(ev.getZoneId(), ev);
-                updateZoneColor(ev);
-                firesLabel.setText("Active fires: " + zones.size());
-                //appendToConsole("FIRE_EVENT: " + ev);
+                zones.computeIfAbsent(ev.getZoneId(), k -> new ArrayList<>()).add(ev);
+                updateZoneColour(ev);
+                firesLabel.setText("Active fires: " + zones.values().stream().mapToInt(List::size).sum());
             }
             case FIRE_OUT -> {
                 FireEvent ev = (FireEvent) msg.getPayload();
-                zones.remove(ev.getZoneId());
-                markZoneExtinguished(ev);
+                List<FireEvent> zoneEvents = zones.get(ev.getZoneId());
+
+                if (zoneEvents != null){
+                    zoneEvents.remove(0);
+                    if (zoneEvents.isEmpty()){
+                        zones.remove(ev.getZoneId());
+                        markZoneExtinguished(ev);
+                    }
+                    else {
+                        updateZoneColour(ev);
+                    }
+                }
                 firesLabel.setText("Active fires: " + zones.size());
-                //appendToConsole("FIRE_OUT: " + ev);
             }
 
             case DRONE_FAULT -> {
                 DroneFault fault = (DroneFault) msg.getPayload();
                 System.out.println("[GUI] DRONE_FAULT: " + fault);
+                droneFault.put(fault.getDroneId(), fault.getFaultType());
+                DroneStatus st = drones.get(fault.getDroneId());
+
+                FaultType type = fault.getFaultType();
+                updateDroneRow(st, type);
+
+                Integer zoneId = st.get_zone_id();
+                if (zoneId != null) {
+                    List<FireEvent> fires = zones.get(zoneId);
+                    if (fires != null && !fires.isEmpty()) {
+                        updateZoneColour(fires.get(0)); // re-color zone based on current fires
+                    }
+                }
             }
         }
         repaint();
@@ -178,10 +203,16 @@ public class GUI extends JFrame {
                     label.setText("DRONE " + st.get_drone_id());
                 }
             }
+            case RETURNING, OFFLINE -> {
+                JLabel label = zoneInfoLabels.get(zoneId);
+                if(label != null){
+                    label.setText("");
+                }
+            }
         }
     }
 
-    private void updateDroneRow(DroneStatus st) {
+    private void updateDroneRow(DroneStatus st, FaultType ft) {
         int id = st.get_drone_id();
 
         // create row if first time seeing this drone
@@ -196,24 +227,27 @@ public class GUI extends JFrame {
             JLabel posLabel = new JLabel("(0, 0)");
             JLabel agentLabel = new JLabel("100L");
             JLabel assignedZone = new JLabel("N/A");
+            JLabel faultLabel = new JLabel("N/A");
 
             idLabel.setHorizontalAlignment(SwingConstants.LEFT);
             stateLabel.setHorizontalAlignment(SwingConstants.LEFT);
             posLabel.setHorizontalAlignment(SwingConstants.LEFT);
             agentLabel.setHorizontalAlignment(SwingConstants.LEFT);
             assignedZone.setHorizontalAlignment(SwingConstants.LEFT);
-
+            faultLabel.setHorizontalAlignment(SwingConstants.LEFT);
 
             droneState.put(id, stateLabel);
             dronePos.put(id, posLabel);
             droneAgent.put(id, agentLabel);
             droneAssignedZone.put(id, assignedZone);
+            droneFaultType.put(id, faultLabel);
 
             row.add(idLabel);
             row.add(stateLabel);
             row.add(posLabel);
             row.add(agentLabel);
             row.add(assignedZone);
+            row.add(faultLabel);
 
             dronePanel.add(row);
             dronePanel.revalidate();
@@ -231,6 +265,8 @@ public class GUI extends JFrame {
         Integer zoneId = st.get_zone_id();
         droneAssignedZone.get(id).setText(zoneId != null ? zoneId.toString() : "N/A");
 
+        droneFaultType.get(id).setText(ft.toString());
+
         // color the state label by what the drone is doing
         JLabel stateLabel = droneState.get(id);
         switch (st.getState()) {
@@ -238,17 +274,26 @@ public class GUI extends JFrame {
             case EN_ROUTE -> stateLabel.setForeground(Color.BLUE);
             case DROPPING -> stateLabel.setForeground(Color.ORANGE);
             case RETURNING -> stateLabel.setForeground(new Color(0, 150, 0));
-            case FAULTED -> stateLabel.setForeground(Color.RED);
-            case OFFLINE -> stateLabel.setForeground(Color.BLACK);
             default -> stateLabel.setForeground(Color.BLACK);
+        }
+        JLabel faultLabel = droneFaultType.get(id);
+        switch (ft){
+            case NONE -> faultLabel.setForeground(Color.GRAY);
+            case DRONE_STUCK -> faultLabel.setForeground(Color.ORANGE);
+            case NOZZLE_JAM -> faultLabel.setForeground(Color.RED);
+            case PACKET_LOSS -> faultLabel.setForeground(Color.YELLOW);
         }
     }
 
-    private void updateZoneColor(FireEvent ev) {
+    private void updateZoneColour(FireEvent ev) {
         JPanel p = zonePanels.get(ev.getZoneId());
         if (p == null) return;
 
-        switch (ev.getSeverity()) {
+        List<FireEvent> fires = zones.get(ev.getZoneId());
+        if (fires == null || fires.isEmpty()) return;
+        Severity worst = fires.stream().map(FireEvent::getSeverity).max(Comparator.comparingInt(Severity::ordinal)).orElse(Severity.LOW);
+
+        switch (worst) {
             case HIGH -> p.setBackground(Color.RED);
             case MODERATE -> p.setBackground(Color.ORANGE);
             case LOW -> p.setBackground(Color.YELLOW);
