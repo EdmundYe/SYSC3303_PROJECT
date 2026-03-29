@@ -43,6 +43,9 @@ Asaad:
 
 
 Edmund:
+- Implemented dynamic drone scheduling
+- revamped GUI to show drone state and fault changes, and drone arrival to middle of zone
+- Implemented Drone positioning and tracking
 
 Chenwei:
 - Edit CLass Diagram
