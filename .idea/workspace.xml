@@ -5,9 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="260e008f-10f7-4a12-9fbd-868217b302ed" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/tests/Iteration4IntegrationTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/GUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/GUI.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/DroneSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/DroneSubsystemTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/FireIncidentSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/FireIncidentSubsystemTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,12 +42,12 @@
     &quot;assignee&quot;: &quot;Derroccoli&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/EdmundYe/SYSC3303_PROJECT.git&quot;,
-    &quot;accountId&quot;: &quot;2f213367-5a43-4dc4-b9d1-b0d418c46384&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/EdmundYe/SYSC3303_PROJECT.git",
+    "accountId": "88f4a1b0-16eb-4ca6-b063-09fe55a9789f"
   }
-}</component>
+}]]></component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -58,10 +62,27 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Application.Main.executor": "Run",
+    "JUnit.DroneSubsystemTest.agentUsageForSeverity_matchesSpec.executor": "Run",
+    "JUnit.DroneSubsystemTest.computeDropTimeMs_respectsWaterDropRate.executor": "Run",
+    "JUnit.DroneSubsystemTest.computeDropTimeMs_roundsUpForFractionalSeconds.executor": "Run",
+    "JUnit.DroneSubsystemTest.computeTravelTimeMs_positiveDistanceIsPositive.executor": "Run",
+    "JUnit.DroneSubsystemTest.computeTravelTimeMs_zeroDistanceReturnsMinimumOneMs.executor": "Run",
+    "JUnit.DroneSubsystemTest.executor": "Run",
+    "JUnit.DroneSubsystemTest.hardFaultLeavesDroneOfflineAndAgentUnchanged.executor": "Run",
+    "JUnit.DroneSubsystemTest.testRun.executor": "Run",
+    "JUnit.DroneSubsystemTest.transition_faultDetected_thenHardFault_leadsToOffline.executor": "Run",
+    "JUnit.DroneSubsystemTest.transition_taskReceived_movesIdleToEnRouteOrBusy.executor": "Run",
+    "JUnit.FireIncidentSubsystemTest.executor": "Run",
+    "JUnit.Iteration4IntegrationTest.executor": "Run",
+    "JUnit.Iteration4IntegrationTest.faultInjection_droneStuck_recoveryFlow.executor": "Run",
+    "JUnit.SchedulerSubsystemTest.executor": "Run",
+    "JUnit.tests in SYSC3303_PROJECT.executor": "Run",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "main"
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -69,12 +90,79 @@
       <recent name="C:\FinalSemesterCarleton\sysc3303_FinalProject\src" />
     </key>
   </component>
-  <component name="RunManager">
-    <configuration name="Main" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="ALTERNATIVE_JRE_PATH" value="25" />
-      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-      <option name="MAIN_CLASS_NAME" value="Main" />
+  <component name="RunManager" selected="JUnit.Iteration4IntegrationTest">
+    <configuration name="DroneSubsystemTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="SYSC3303_PROJECT" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="tests.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="tests" />
+      <option name="MAIN_CLASS_NAME" value="tests.DroneSubsystemTest" />
+      <option name="TEST_OBJECT" value="class" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="FireIncidentSubsystemTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="SYSC3303_PROJECT" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="tests.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="tests" />
+      <option name="MAIN_CLASS_NAME" value="tests.FireIncidentSubsystemTest" />
+      <option name="TEST_OBJECT" value="class" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Iteration4IntegrationTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="SYSC3303_PROJECT" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="tests.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="tests" />
+      <option name="MAIN_CLASS_NAME" value="tests.Iteration4IntegrationTest" />
+      <option name="TEST_OBJECT" value="class" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Iteration4IntegrationTest.faultInjection_droneStuck_recoveryFlow" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="SYSC3303_PROJECT" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="tests.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="tests" />
+      <option name="MAIN_CLASS_NAME" value="tests.Iteration4IntegrationTest" />
+      <option name="METHOD_NAME" value="faultInjection_droneStuck_recoveryFlow" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="SchedulerSubsystemTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="SYSC3303_PROJECT" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="tests.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="tests" />
+      <option name="MAIN_CLASS_NAME" value="tests.SchedulerSubsystemTest" />
+      <option name="TEST_OBJECT" value="class" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -86,21 +174,18 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.Main" />
+        <item itemvalue="JUnit.Iteration4IntegrationTest" />
+        <item itemvalue="JUnit.SchedulerSubsystemTest" />
+        <item itemvalue="JUnit.FireIncidentSubsystemTest" />
+        <item itemvalue="JUnit.DroneSubsystemTest" />
+        <item itemvalue="JUnit.Iteration4IntegrationTest.faultInjection_droneStuck_recoveryFlow" />
       </list>
     </recent_temporary>
-  </component>
-  <component name="SharedIndexes">
-    <attachedChunks>
-      <set>
-        <option value="bundled-jdk-30f59d01ecdd-26cb7f24e5b0-intellij.indexing.shared.core-IU-253.29346.240" />
-      </set>
-    </attachedChunks>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="9d406309-beaf-41df-8d06-335732741e57" name="Changes" comment="" />
+      <changelist id="260e008f-10f7-4a12-9fbd-868217b302ed" name="Changes" comment="" />
       <created>1769713168991</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />

@@ -99,7 +99,7 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
-    void handle(Message msg, InetAddress address, int port) {
+    public void handle(Message msg, InetAddress address, int port) {
         switch (msg.getType()) {
             case FIRE_EVENT -> handleFireEvent(msg, address, port);
             case DRONE_POLL -> handleDronePoll(msg, address, port);

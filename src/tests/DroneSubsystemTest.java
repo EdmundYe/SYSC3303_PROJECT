@@ -4,10 +4,16 @@ import MessageTransport.MessageTransporter;
 import MessageTransport.SendAddress;
 import SubSystems.DroneSubsystem;
 import common.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.DatagramSocket;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -15,6 +21,213 @@ import java.util.concurrent.Executors;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DroneSubsystemTest {
+    private DroneSubsystem drone;
+
+    /**
+     * Creates a new DroneSubsystem before each test.
+     * A fixed drone ID is used so the bound port (6101)
+     * is predictable and consistent across tests.
+     */
+    @BeforeEach
+    void setUp() {
+        drone = new DroneSubsystem(1);
+    }
+
+    /**
+     * Ensures the socket inside DroneSubsystem is closed
+     * after each test to avoid binding to a port in use.
+     */
+    @AfterEach
+    void cleanup() {
+        try {
+            Field f = DroneSubsystem.class.getDeclaredField("socket");
+            f.setAccessible(true);
+            DatagramSocket s = (DatagramSocket) f.get(drone);
+            s.close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Invokes a private method on DroneSubsystem using reflection.
+     */
+    private Object invokePrivate(Object target, String name, Class<?>[] paramTypes, Object... args) {
+        try {
+            Method m = target.getClass().getDeclaredMethod(name, paramTypes);
+            m.setAccessible(true);
+            return m.invoke(target, args);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Sets the drone's internal state via reflection.
+     */
+    private void setState(DroneState state) {
+        try {
+            Field f = DroneSubsystem.class.getDeclaredField("state");
+            f.setAccessible(true);
+            f.set(drone, state);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Retrieves the drone's internal state via reflection.
+     */
+    private DroneState getState() {
+        try {
+            Field f = DroneSubsystem.class.getDeclaredField("state");
+            f.setAccessible(true);
+            return (DroneState) f.get(drone);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Retrieves the drone's remaining firefighting agent (litres).
+     */
+    private int getRemainingAgent() {
+        try {
+            Field f = DroneSubsystem.class.getDeclaredField("remainingAgent");
+            f.setAccessible(true);
+            return (int) f.get(drone);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Verifies that the agent usage per severity level matches
+     *   LOW = 10L
+     *   MODERATE = 20L
+     *   HIGH = 30L
+     */
+    @Test
+    void agentUsageForSeverity_matchesSpec() {
+        int low = (int) invokePrivate(drone, "agentUsageForSeverity",
+                new Class<?>[]{Severity.class}, Severity.LOW);
+
+        int moderate = (int) invokePrivate(drone, "agentUsageForSeverity",
+                new Class<?>[]{Severity.class}, Severity.MODERATE);
+
+        int high = (int) invokePrivate(drone, "agentUsageForSeverity",
+                new Class<?>[]{Severity.class}, Severity.HIGH);
+
+        assertEquals(10, low);
+        assertEquals(20, moderate);
+        assertEquals(30, high);
+    }
+
+    /**
+     * Ensures drop‑time calculation respects the configured drop rate.
+     */
+    @Test
+    void computeDropTimeMs_respectsWaterDropRate() {
+        long ms = (long) invokePrivate(drone, "computeDropTimeMs",
+                new Class<?>[]{int.class}, 10);
+
+        assertEquals(50_000L, ms);
+    }
+
+    /**
+     * Ensures fractional drop durations are rounded up.
+     */
+    @Test
+    void computeDropTimeMs_roundsUpForFractionalSeconds() {
+        long ms = (long) invokePrivate(drone, "computeDropTimeMs",
+                new Class<?>[]{int.class}, 1);
+
+        assertEquals(5_000L, ms);
+    }
+
+    /**
+     * Travel time for zero distance should always return at least 1 ms.
+     */
+    @Test
+    void computeTravelTimeMs_zeroDistanceReturnsMinimumOneMs() {
+        long ms = (long) invokePrivate(drone, "computeTravelTimeMs",
+                new Class<?>[]{double.class}, 0.0);
+
+        assertEquals(1L, ms);
+    }
+
+    /**
+     * Travel time for any positive distance must be > 0.
+     */
+    @Test
+    void computeTravelTimeMs_positiveDistanceIsPositive() {
+        long ms = (long) invokePrivate(drone, "computeTravelTimeMs",
+                new Class<?>[]{double.class}, 1000.0);
+
+        assertTrue(ms > 0);
+    }
+
+    /**
+     * TASK_RECEIVED should move the drone out of IDLE.
+     */
+    @Test
+    void transition_taskReceived_movesIdleToEnRouteOrBusy() {
+        setState(DroneState.IDLE);
+
+        invokePrivate(drone, "transition",
+                new Class<?>[]{DroneEvent.class}, DroneEvent.TASK_RECEIVED);
+
+        assertNotEquals(DroneState.IDLE, getState());
+    }
+
+    /**
+     * FAULT_DETECTED followed by HARD_FAULT should place the drone
+     * into the OFFLINE state, representing a non‑recoverable failure.
+     */
+    @Test
+    void transition_faultDetected_thenHardFault_leadsToOffline() {
+        setState(DroneState.EN_ROUTE);
+
+        invokePrivate(drone, "transition",
+                new Class<?>[]{DroneEvent.class}, DroneEvent.FAULT_DETECTED);
+
+        invokePrivate(drone, "transition",
+                new Class<?>[]{DroneEvent.class}, DroneEvent.HARD_FAULT);
+
+        assertEquals(DroneState.OFFLINE, getState());
+    }
+
+    /**
+     * RECOVERED should move the drone out of FAULTED state.
+     */
+    @Test
+    void transition_recoveredFromFault_returnsToIdleOrReturning() {
+        setState(DroneState.FAULTED);
+
+        invokePrivate(drone, "transition",
+                new Class<?>[]{DroneEvent.class}, DroneEvent.RECOVERED);
+
+        assertNotEquals(DroneState.FAULTED, getState());
+    }
+
+    /**
+     * Verifies that a HARD_FAULT places the drone OFFLINE and does not
+     * modify the remaining agent level.
+     */
+    @Test
+    void hardFaultLeavesDroneOfflineAndAgentUnchanged() {
+        int beforeAgent = getRemainingAgent();
+        setState(DroneState.EN_ROUTE);
+
+        invokePrivate(drone, "transition",
+                new Class<?>[]{DroneEvent.class}, DroneEvent.FAULT_DETECTED);
+
+        invokePrivate(drone, "transition",
+                new Class<?>[]{DroneEvent.class}, DroneEvent.HARD_FAULT);
+
+        assertEquals(DroneState.OFFLINE, getState());
+        assertEquals(beforeAgent, getRemainingAgent());
+    }
     /**
      * Tests how the drone starts and polls
      * Expected result: Drone receives a DRONE_POLL message from scheduler with droneId as payload
