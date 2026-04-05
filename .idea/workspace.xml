@@ -5,13 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="260e008f-10f7-4a12-9fbd-868217b302ed" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/tests/Iteration4IntegrationTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/diagrams/nozzle_jam_timing.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/diagrams/recoverable_fault_timing.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/SubSystems/SimulationMetrics.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Drone-State-Machine-Diagram.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/diagrams/Drone-State-Machine-Diagram.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Drone_State_Machine_Diagram.drawio.png" beforeDir="false" afterPath="$PROJECT_DIR$/diagrams/Drone_State_Machine_Diagram.drawio.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Iteration2-Sequence-Diagram.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/diagrams/Iteration2-Sequence-Diagram.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Iteration3-UML-Class-Diagram.png" beforeDir="false" afterPath="$PROJECT_DIR$/diagrams/Iteration3-UML-Class-Diagram.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Iteration4-UML-Class-Diagram.png.png" beforeDir="false" afterPath="$PROJECT_DIR$/diagrams/Iteration4-UML-Class-Diagram.png.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" beforeDir="false" afterPath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Scheduler-State-Machine-Diagram.drawio.png" beforeDir="false" afterPath="$PROJECT_DIR$/diagrams/Scheduler-State-Machine-Diagram.drawio.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Scheduler-State-Machine-Diagram.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/diagrams/Scheduler-State-Machine-Diagram.pdf" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/DroneSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/DroneSubsystemTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/FireIncidentSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/FireIncidentSubsystemTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/SchedulerSubsystemTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystemTest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,12 +50,12 @@
     &quot;assignee&quot;: &quot;Derroccoli&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/EdmundYe/SYSC3303_PROJECT.git",
-    "accountId": "88f4a1b0-16eb-4ca6-b063-09fe55a9789f"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/EdmundYe/SYSC3303_PROJECT.git&quot;,
+    &quot;accountId&quot;: &quot;88f4a1b0-16eb-4ca6-b063-09fe55a9789f&quot;
   }
-}]]></component>
+}</component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -82,20 +90,24 @@
     "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "main",
-    "kotlin-language-version-configured": "true"
+    "kotlin-language-version-configured": "true",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2"
   }
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\FinalSemesterCarleton\revert_sysc3303_finalproj\SYSC3303_PROJECT\diagrams" />
       <recent name="C:\FinalSemesterCarleton\sysc3303_FinalProject\src" />
     </key>
   </component>
-  <component name="RunManager" selected="JUnit.Iteration4IntegrationTest">
+  <component name="RunManager">
     <configuration name="DroneSubsystemTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="SYSC3303_PROJECT" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="tests.*" />
+          <option name="PATTERN" value="SubSystems.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -110,7 +122,7 @@
       <module name="SYSC3303_PROJECT" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="tests.*" />
+          <option name="PATTERN" value="SubSystems.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -125,7 +137,7 @@
       <module name="SYSC3303_PROJECT" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="tests.*" />
+          <option name="PATTERN" value="SubSystems.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -140,7 +152,7 @@
       <module name="SYSC3303_PROJECT" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="tests.*" />
+          <option name="PATTERN" value="SubSystems.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -156,12 +168,12 @@
       <module name="SYSC3303_PROJECT" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="tests.*" />
+          <option name="PATTERN" value="SubSystems.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
-      <option name="PACKAGE_NAME" value="tests" />
-      <option name="MAIN_CLASS_NAME" value="tests.SchedulerSubsystemTest" />
+      <option name="PACKAGE_NAME" value="SubSystems" />
+      <option name="MAIN_CLASS_NAME" value="SubSystems.SchedulerSubsystemTest" />
       <option name="TEST_OBJECT" value="class" />
       <method v="2">
         <option name="Make" enabled="true" />

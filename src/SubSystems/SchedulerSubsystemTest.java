@@ -1,8 +1,7 @@
-package tests;
+package SubSystems;
 
 import MessageTransport.MessageTransporter;
 import MessageTransport.SendAddress;
-import SubSystems.SchedulerSubsystem;
 import common.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

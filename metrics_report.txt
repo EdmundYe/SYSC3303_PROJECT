@@ -1,0 +1,22 @@
+
+==================================================
+SIMULATION METRICS REPORT
+==================================================
+Simulation wall-clock runtime: 216.39 s
+Time from first incident to last fire extinguished: 216.08 s
+Completed incidents: 2
+Average incident detect-to-extinguish time: 161.53 s
+
+Per-drone metrics:
+Drone 1 | distance=4501.2 m | idle=0.00 s | en_route=30.54 s | dropping=150.21 s | returning=31.93 s | faulted=0.00 s | missions=1 | faults=0
+Drone 2 | distance=3309.4 m | idle=109.09 s | en_route=26.47 s | dropping=50.20 s | returning=27.36 s | faulted=0.00 s | missions=1 | faults=0
+
+Fleet averages:
+Average drone idle time: 54.55 s
+Average drone en-route time: 28.51 s
+Average drone dropping time: 100.20 s
+Average drone returning time: 29.64 s
+Average drone faulted time: 0.00 s
+Total fleet distance travelled: 7810.6 m
+==================================================
+

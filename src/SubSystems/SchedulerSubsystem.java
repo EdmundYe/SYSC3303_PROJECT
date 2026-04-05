@@ -23,6 +23,7 @@ public class SchedulerSubsystem implements Runnable {
 
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
+    private final SimulationMetrics metrics = new SimulationMetrics();
 
     DatagramSocket receiveSocket;
     DatagramSocket sendSocket;
@@ -99,7 +100,7 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
-    public void handle(Message msg, InetAddress address, int port) {
+    void handle(Message msg, InetAddress address, int port) {
         switch (msg.getType()) {
             case FIRE_EVENT -> handleFireEvent(msg, address, port);
             case DRONE_POLL -> handleDronePoll(msg, address, port);
@@ -113,6 +114,7 @@ public class SchedulerSubsystem implements Runnable {
     private void handleFireEvent(Message msg, InetAddress address, int port) {
         FireEvent event = (FireEvent) msg.getPayload();
         pendingEvents.add(event);
+        metrics.recordFireDetected(event);
 
         sendToGUI(msg);
         System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
@@ -154,6 +156,7 @@ public class SchedulerSubsystem implements Runnable {
         DroneInfo drone = getOrCreateDrone(droneId);
         updateDroneEndpoint(drone, address, port);
         drone.applyStatus(status);
+        metrics.recordDroneStatus(status);
 
         sendToGUI(msg);
         System.out.println("[SCHEDULER] Drone status update: " + status);
@@ -177,10 +180,13 @@ public class SchedulerSubsystem implements Runnable {
 
         drone.markIdle();
         drone.remainingAgent = status.get_remaining_agent();
+        drone.batteryLevel = status.get_battery_level();
         drone.missionsCompleted++;
+        metrics.recordDroneDone(droneId);
 
         if (completedEvent != null) {
             notifyFireOut(completedEvent);
+            metrics.recordFireOut(completedEvent);
         }
 
         if (counts != null) {
@@ -189,6 +195,7 @@ public class SchedulerSubsystem implements Runnable {
 
         tryDispatchIfPossible();
         refreshSchedulerState();
+        maybePrintMetricsReport();
     }
 
     private void handleDroneFault(Message msg, InetAddress address, int port) {
@@ -197,6 +204,7 @@ public class SchedulerSubsystem implements Runnable {
 
         sendToGUI(msg);
         System.out.println("[SCHEDULER] Drone fault reported: " + fault);
+        metrics.recordDroneFault(droneId);
 
         DroneInfo drone = getOrCreateDrone(droneId);
         updateDroneEndpoint(drone, address, port);
@@ -239,6 +247,7 @@ public class SchedulerSubsystem implements Runnable {
         if (drone == null) {
             drone = new DroneInfo(droneId);
             drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
+            drone.batteryLevel = 100;
             drones.put(droneId, drone);
             System.out.println("[SCHEDULER] Registered Drone " + droneId);
         }
@@ -401,6 +410,17 @@ public class SchedulerSubsystem implements Runnable {
             }
         }
         return false;
+    }
+
+    private boolean hasPendingEvents() {
+        return !pendingEvents.isEmpty();
+    }
+
+    private void maybePrintMetricsReport() {
+        int activeFires = counts != null ? counts.getActiveFires() : 0;
+        if (metrics.shouldPrintFinalReport(!hasPendingEvents(), !hasBusyDrones(), activeFires)) {
+            metrics.printFinalReport();
+        }
     }
 
     private void refreshSchedulerState() {
