@@ -13,7 +13,7 @@ public class DroneSubsystem implements Runnable {
     private static final int DEFAULT_AGENT_CAPACITY = 100;
     private static final int DEFAULT_BATTERY_CAPACITY = 100;
     private static final int BATTERY_DRAIN_PER_TRAVEL_STEP = 1;
-    private static final int BATTERY_DRAIN_DROPPING = 2;
+    private static final int BATTERY_DRAIN_DROPPING = 1;
     private static final int TIME_TO_OPEN_DOOR = 200; // milliseconds
     private static final double WATER_DROP_RATE = 0.2; // L/s
     private static final int ACCELERATION = 6; // m/s
@@ -230,14 +230,12 @@ public class DroneSubsystem implements Runnable {
         Thread.sleep(TIME_TO_OPEN_DOOR);
 
         System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
-        Thread.sleep(dropMs);
-
-        remainingAgent = Math.max(0, remainingAgent - amountUsed);
-        batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_DROPPING);
-        sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
-
-        transition(DroneEvent.DROP_COMPLETE);
-        sendStatus(state, currentZoneId, remainingAgent);
+        long droppingSteps = Math.max(1, dropMs / 2000);
+        for (int i = 0; i < droppingSteps; i++) {
+            Thread.sleep(Math.max(1, dropMs / droppingSteps));
+            batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_DROPPING);
+            sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
+        }
 
         System.out.println("[DRONE " + droneId + "] Returning to base");
         travelToBase(returnMs, state);
