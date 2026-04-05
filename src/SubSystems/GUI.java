@@ -4,7 +4,9 @@ import common.*;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class GUI extends JFrame {
@@ -31,32 +33,27 @@ public class GUI extends JFrame {
         JPanel root = new JPanel(new BorderLayout(10, 10));
         root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        // Top counter bar
         JPanel top = new JPanel(new GridLayout(1, 2, 10, 0));
         firesLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         dronesLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         top.add(firesLabel);
         top.add(dronesLabel);
 
-        // Load zones dynamically from ZoneMap
         Map<Integer, int[]> allZones = ZoneMap.getAllZones();
         int zoneCount = allZones.size();
-
-        // Calculate grid dimensions (roughly square)
         int cols = (int) Math.ceil(Math.sqrt(zoneCount));
         int rows = (int) Math.ceil((double) zoneCount / cols);
 
         JPanel grid = new JPanel(new GridLayout(rows, cols, 10, 10));
 
-        // Add zone cells dynamically
         for (Map.Entry<Integer, int[]> entry : allZones.entrySet()) {
             int zoneId = entry.getKey();
             int[] coords = entry.getValue();
             grid.add(makeZoneCell("Z(" + zoneId + ") [" + coords[0] + "," + coords[1] + "]", zoneId));
         }
 
-        // Sidebar
         dronePanel.setLayout(new BoxLayout(dronePanel, BoxLayout.Y_AXIS));
+
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setPreferredSize(new Dimension(550, 0));
@@ -74,8 +71,12 @@ public class GUI extends JFrame {
         sidebar.add(header);
         sidebar.add(new JSeparator());
 
-        dronePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        sidebar.add(dronePanel);
+        JScrollPane droneScrollPane = new JScrollPane(dronePanel);
+        droneScrollPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+        droneScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        droneScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        droneScrollPane.setPreferredSize(new Dimension(530, 800));
+        sidebar.add(droneScrollPane);
 
         root.add(top, BorderLayout.NORTH);
         root.add(grid, BorderLayout.CENTER);
@@ -83,7 +84,6 @@ public class GUI extends JFrame {
 
         setContentPane(root);
 
-        // Poll counts periodically
         Timer t = new Timer(200, e -> {
             firesLabel.setText("Active fires: " + zones.size());
             dronesLabel.setText("Drones busy: " + counts.getBusyDrones() + " / " + counts.getTotalDrones());
@@ -91,7 +91,7 @@ public class GUI extends JFrame {
         t.start();
     }
 
-    private JLabel boldLabel(String text){
+    private JLabel boldLabel(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         label.setHorizontalAlignment(SwingConstants.LEFT);
@@ -125,11 +125,11 @@ public class GUI extends JFrame {
                 updateDroneRow(st);
 
                 long busy = drones.values().stream()
-                        .filter(d -> d.getState() != DroneState.IDLE)
+                        .filter(d -> d.getState() != DroneState.IDLE && d.getState() != DroneState.DONE)
                         .count();
 
                 dronesLabel.setText("Drones busy: " + busy + " / " + drones.size());
-                showDroneInZone(st);
+                showDronesInZones();
             }
             case DRONE_TASK -> {
                 // no-op for now
@@ -138,6 +138,7 @@ public class GUI extends JFrame {
                 DroneStatus st = (DroneStatus) msg.getPayload();
                 drones.put(st.get_drone_id(), st);
                 updateDroneRow(st);
+                showDronesInZones();
             }
             case FIRE_EVENT -> {
                 if (!(msg.getPayload() instanceof FireEvent ev)) {
@@ -146,41 +147,52 @@ public class GUI extends JFrame {
                 zones.put(ev.getZoneId(), ev);
                 updateZoneColor(ev);
                 firesLabel.setText("Active fires: " + zones.size());
+                showDronesInZones();
             }
             case FIRE_OUT -> {
                 FireEvent ev = (FireEvent) msg.getPayload();
                 zones.remove(ev.getZoneId());
                 markZoneExtinguished(ev);
                 firesLabel.setText("Active fires: " + zones.size());
+                showDronesInZones();
             }
             case DRONE_FAULT -> {
                 DroneFault fault = (DroneFault) msg.getPayload();
                 System.out.println("[GUI] DRONE_FAULT: " + fault);
+                showDronesInZones();
             }
         }
         repaint();
     }
 
-    private void showDroneInZone(DroneStatus st){
-        // Clear previous drone display in all zones
+    private void showDronesInZones() {
         for (Map.Entry<Integer, JLabel> entry : zoneInfoLabels.entrySet()) {
-            String text = entry.getValue().getText();
-            if (text.contains("Drone " + st.get_drone_id()) || text.contains("DRONE " + st.get_drone_id())) {
-                entry.getValue().setText("");
-            }
-        }
+            int zoneId = entry.getKey();
+            JLabel label = entry.getValue();
 
-        Integer zoneId = st.get_zone_id();
-        if (zoneId == null) return;
-
-        // Show drone in zone during EN_ROUTE, DROPPING, RETURNING states
-        switch (st.getState()){
-            case EN_ROUTE, DROPPING, RETURNING -> {
-                JLabel label = zoneInfoLabels.get(zoneId);
-                if (label != null){
-                    label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-                    label.setText("DRONE " + st.get_drone_id());
+            List<String> occupants = new ArrayList<>();
+            for (DroneStatus st : drones.values()) {
+                Integer droneZoneId = st.get_zone_id();
+                if (droneZoneId == null || droneZoneId != zoneId) {
+                    continue;
                 }
+
+                switch (st.getState()) {
+                    case EN_ROUTE, DROPPING, RETURNING, FAULTED, OFFLINE ->
+                            occupants.add("Drone " + st.get_drone_id() + " - " + st.getState());
+                    default -> {
+                    }
+                }
+            }
+
+            if (!occupants.isEmpty()) {
+                label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+                label.setText("<html>" + String.join("<br>", occupants) + "</html>");
+            } else if (zones.containsKey(zoneId)) {
+                label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+                label.setText("Fire active");
+            } else {
+                label.setText("");
             }
         }
     }
@@ -279,13 +291,15 @@ public class GUI extends JFrame {
 
     private void markZoneExtinguished(FireEvent ev) {
         JPanel p = zonePanels.get(ev.getZoneId());
-        if (p != null){
+        if (p != null) {
             p.setBackground(Color.GREEN);
             p.revalidate();
             p.repaint();
         }
 
         JLabel label = zoneInfoLabels.get(ev.getZoneId());
-        if (label != null) label.setText("Fire out");
+        if (label != null) {
+            label.setText("Fire out");
+        }
     }
 }

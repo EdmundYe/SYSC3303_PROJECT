@@ -6,8 +6,10 @@ import common.*;
 import javax.swing.*;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.net.*;
 import java.io.*;
 
@@ -23,6 +25,7 @@ public class SchedulerSubsystem implements Runnable {
 
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
+    private final Set<Integer> activeZones = new HashSet<>();
     private final SimulationMetrics metrics = new SimulationMetrics();
 
     DatagramSocket receiveSocket;
@@ -113,6 +116,13 @@ public class SchedulerSubsystem implements Runnable {
 
     private void handleFireEvent(Message msg, InetAddress address, int port) {
         FireEvent event = (FireEvent) msg.getPayload();
+
+        if (isZoneActive(event.getZoneId()) || isZonePending(event.getZoneId())) {
+            System.out.println("[SCHEDULER] Ignoring duplicate FIRE_EVENT for zone " + event.getZoneId());
+            sendAckToFireIncident(address, port);
+            return;
+        }
+
         pendingEvents.add(event);
         metrics.recordFireDetected(event);
 
@@ -177,6 +187,7 @@ public class SchedulerSubsystem implements Runnable {
         updateDroneEndpoint(drone, address, port);
 
         FireEvent completedEvent = drone.assignedEvent;
+        releaseZoneForEvent(completedEvent);
 
         drone.markIdle();
         drone.remainingAgent = status.get_remaining_agent();
@@ -189,7 +200,7 @@ public class SchedulerSubsystem implements Runnable {
             metrics.recordFireOut(completedEvent);
         }
 
-        if (counts != null) {
+        if (counts != null && completedEvent != null) {
             counts.decActiveFires();
         }
 
@@ -210,7 +221,9 @@ public class SchedulerSubsystem implements Runnable {
         updateDroneEndpoint(drone, address, port);
 
         FireEvent failedEvent = drone.assignedEvent;
-        if (failedEvent != null) {
+        releaseZoneForEvent(failedEvent);
+
+        if (failedEvent != null && !isZonePending(failedEvent.getZoneId())) {
             FireEvent retryEvent = new FireEvent(
                     failedEvent.getTimestamp(),
                     failedEvent.getZoneId(),
@@ -263,16 +276,29 @@ public class SchedulerSubsystem implements Runnable {
         refreshSchedulerState();
 
         while (!pendingEvents.isEmpty()) {
-            FireEvent nextEvent = pendingEvents.peek();
-            DroneInfo bestDrone = findBestDroneForNextEvent(nextEvent);
+            FireEvent dispatchableEvent = null;
+            DroneInfo bestDrone = null;
 
-            if (bestDrone == null) {
+            for (FireEvent event : pendingEvents) {
+                if (isZoneActive(event.getZoneId())) {
+                    continue;
+                }
+
+                DroneInfo candidate = findBestDroneForNextEvent(event);
+                if (candidate != null) {
+                    dispatchableEvent = event;
+                    bestDrone = candidate;
+                    break;
+                }
+            }
+
+            if (dispatchableEvent == null || bestDrone == null) {
                 refreshSchedulerState();
                 return;
             }
 
-            FireEvent event = pendingEvents.poll();
-            dispatch(bestDrone, event);
+            pendingEvents.remove(dispatchableEvent);
+            dispatch(bestDrone, dispatchableEvent);
 
             transition(SchedulerEvent.DISPATCH_SENT);
             refreshSchedulerState();
@@ -319,6 +345,7 @@ public class SchedulerSubsystem implements Runnable {
     }
 
     private void dispatch(DroneInfo drone, FireEvent event) {
+        activeZones.add(event.getZoneId());
         drone.markBusy(event);
         if (drone.remainingAgent == null) {
             drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
@@ -354,6 +381,25 @@ public class SchedulerSubsystem implements Runnable {
                 + " to zone " + event.getZoneId()
                 + " (" + event.getSeverity()
                 + ", fault=" + event.getFaultType() + ")");
+    }
+
+    private boolean isZoneActive(int zoneId) {
+        return activeZones.contains(zoneId);
+    }
+
+    private boolean isZonePending(int zoneId) {
+        for (FireEvent event : pendingEvents) {
+            if (event.getZoneId() == zoneId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void releaseZoneForEvent(FireEvent event) {
+        if (event != null) {
+            activeZones.remove(event.getZoneId());
+        }
     }
 
     private void sendAckToFireIncident(InetAddress address, int port) {

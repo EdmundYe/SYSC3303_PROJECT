@@ -8,7 +8,7 @@ import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) {
-        int numberOfDrones = 3;
+        int numberOfDrones = 20;
         String inputFile = "src/input.csv";
 
         SystemCounts counts = new SystemCounts();
