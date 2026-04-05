@@ -34,6 +34,27 @@ scheduler-state-machine-diagram - State machine diagram showing scheduler states
 
 Iteration progress:
 
+Iteration 4:
+Derrick:
+-Added backwards compatibility to some deprecated tests as to not break build
+-implemented faults to drones, drone_stuck being a short pause and return to base, and nozzle being an offline return to base unusable
+
+Asaad:
+- Added the following tests:
+- Unit tests for drone mission execution and state transitions
+- Unit tests for scheduler queueing, dispatching, and reassignment logic
+- Unit tests for fault injection handling
+- Integration tests for main use case flow across all subsystems under normal and faulty conditions
+
+Edmund:
+- Implemented dynamic drone scheduling
+- revamped GUI to show drone state and fault changes, and drone arrival to middle of zone
+- Implemented Drone positioning and tracking
+
+Chenwei:
+- Edit CLass Diagram
+- Fault type enumeration and made for support fault injection
+
 Iteration 3:
 Derrick:
 -Added scheduling logic for drone selection: Dispatches drones that are reachable, pick drone with least amount of missions, tie break user drone with lower ID.
