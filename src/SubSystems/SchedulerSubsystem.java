@@ -309,10 +309,16 @@ public class SchedulerSubsystem implements Runnable {
 
     private DroneInfo findBestDroneForNextEvent(FireEvent event) {
         int requestedZone = event.getZoneId();
+        int requiredAgent = event.getSeverity().requiredAgentLitres(); // How much agent required
+
         DroneInfo best = null;
         double bestScore = Double.MAX_VALUE;
 
         for (DroneInfo drone : drones.values()) {
+            if (drone.remainingAgent != null && drone.remainingAgent < requiredAgent) {
+                continue;
+            }
+
             if (drone.isDispatchable()) {
                 double timeToZone = drone.estimateSecondsToZone(requestedZone);
                 double score = timeToZone + drone.missionsCompleted * 10.0;

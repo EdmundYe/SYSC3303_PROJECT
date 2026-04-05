@@ -243,10 +243,11 @@ public class DroneSubsystem implements Runnable {
         transition(DroneEvent.RETURN_COMPLETE);
         currentZoneId = null;
 
+        remainingAgent = DEFAULT_AGENT_CAPACITY;
         batteryLevel = DEFAULT_BATTERY_CAPACITY;
         state = DroneState.IDLE;
         sendStatusWithPosition(state, null, remainingAgent, 0, 0);
-        System.out.println("[DRONE " + droneId + "] Arrived at base");
+        System.out.println("[DRONE " + droneId + "] Arrived at base. Refilled to: Agent=" + remainingAgent + "L, Battery=" + batteryLevel + "%");
 
         return true;
     }
