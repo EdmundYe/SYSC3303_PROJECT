@@ -237,6 +237,9 @@ public class DroneSubsystem implements Runnable {
             sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
         }
 
+        transition(DroneEvent.DROP_COMPLETE);
+        sendStatus(state, currentZoneId, remainingAgent);
+
         System.out.println("[DRONE " + droneId + "] Returning to base");
         travelToBase(returnMs, state);
 
