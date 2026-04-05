@@ -8,24 +8,37 @@ public final class DroneStatus implements Serializable {
     private final DroneState state;
     private final Integer zone_id;           // nullable if not assigned
     private final Integer remaining_agent;   // nullable if unknown
+    private final Integer battery_level;     // nullable if unknown
     private final double posX;
     private final double posY;
     private final long status_time_ms;
 
     public DroneStatus(int drone_id, DroneState state, Integer zone_id, Integer remaining_agent) {
-        this(drone_id, state, zone_id, remaining_agent, 0, 0, System.currentTimeMillis());
+        this(drone_id, state, zone_id, remaining_agent, 100, 0, 0, System.currentTimeMillis());
     }
 
-    public DroneStatus(int drone_id, DroneState state, Integer zone_id, Integer remaining_agent, double posX, double posY) {
-        this(drone_id, state, zone_id, remaining_agent, posX, posY, System.currentTimeMillis());
+    public DroneStatus(int drone_id, DroneState state, Integer zone_id, Integer remaining_agent, Integer battery_level) {
+        this(drone_id, state, zone_id, remaining_agent, battery_level, 0, 0, System.currentTimeMillis());
+    }
+
+    public DroneStatus(int drone_id, DroneState state, Integer zone_id, Integer remaining_agent,
+                       double posX, double posY) {
+        this(drone_id, state, zone_id, remaining_agent, 100, posX, posY, System.currentTimeMillis());
+    }
+
+    public DroneStatus(int drone_id, DroneState state, Integer zone_id, Integer remaining_agent,
+                       Integer battery_level, double posX, double posY) {
+        this(drone_id, state, zone_id, remaining_agent, battery_level, posX, posY, System.currentTimeMillis());
     }
 
     public DroneStatus(int drone_id, DroneState state, Integer zone_id,
-                       Integer remaining_agent, double posX, double posY, long status_time_ms) {
+                       Integer remaining_agent, Integer battery_level,
+                       double posX, double posY, long status_time_ms) {
         this.drone_id = drone_id;
         this.state = state;
         this.zone_id = zone_id;
         this.remaining_agent = remaining_agent;
+        this.battery_level = battery_level;
         this.posX = posX;
         this.posY = posY;
         this.status_time_ms = status_time_ms;
@@ -46,7 +59,13 @@ public final class DroneStatus implements Serializable {
     public Integer get_remaining_agent() {
         return remaining_agent;
     }
+
+    public Integer get_battery_level() {
+        return battery_level;
+    }
+
     public double getPosX(){return posX;}
+
     public double getPosY(){return posY;}
 
     public long get_status_time_ms() {
@@ -60,6 +79,7 @@ public final class DroneStatus implements Serializable {
                 ", state=" + state +
                 ", zone_id=" + zone_id +
                 ", remaining_agent=" + remaining_agent +
+                ", battery_level=" + battery_level +
                 ", pos=(" + String.format("%.0f", posX) + "," + String.format("%.0f", posY) + ")" +
                 ", status_time_ms=" + status_time_ms +
                 '}';

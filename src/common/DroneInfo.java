@@ -11,6 +11,7 @@ public class DroneInfo {
     public DroneState lastKnownState;
     public Integer currentZoneId;
     public Integer remainingAgent;
+    public Integer batteryLevel;
     public int missionsCompleted;
     public long lastStatusTimeMs;
 
@@ -30,6 +31,7 @@ public class DroneInfo {
         this.lastKnownState = DroneState.IDLE;
         this.currentZoneId = null;
         this.remainingAgent = 100;
+        this.batteryLevel = 100;
         this.missionsCompleted = 0;
         this.lastStatusTimeMs = System.currentTimeMillis();
 
@@ -93,6 +95,7 @@ public class DroneInfo {
         this.lastKnownState = status.getState();
         this.currentZoneId = status.get_zone_id();
         this.remainingAgent = status.get_remaining_agent();
+        this.batteryLevel = status.get_battery_level();
         this.lastStatusTimeMs = status.get_status_time_ms();
         this.posX = status.getPosX();
         this.posY = status.getPosY();

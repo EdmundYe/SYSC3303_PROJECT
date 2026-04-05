@@ -11,6 +11,9 @@ public class DroneSubsystem implements Runnable {
     private static final String SCHEDULER_HOST = "localhost";
     private static final int SCHEDULER_PORT = 6000;
     private static final int DEFAULT_AGENT_CAPACITY = 100;
+    private static final int DEFAULT_BATTERY_CAPACITY = 100;
+    private static final int BATTERY_DRAIN_PER_TRAVEL_STEP = 1;
+    private static final int BATTERY_DRAIN_DROPPING = 2;
     private static final int TIME_TO_OPEN_DOOR = 200; // milliseconds
     private static final double WATER_DROP_RATE = 0.2; // L/s
     private static final int ACCELERATION = 6; // m/s
@@ -24,6 +27,7 @@ public class DroneSubsystem implements Runnable {
 
     private Integer currentZoneId = null;
     private int remainingAgent = DEFAULT_AGENT_CAPACITY;
+    private int batteryLevel = DEFAULT_BATTERY_CAPACITY;
     private int missionsCompleted = 0;
 
     private SystemCounts counts = null;
@@ -105,7 +109,7 @@ public class DroneSubsystem implements Runnable {
     }
 
     private void sendStatus(DroneState state, Integer zoneId, Integer remainingAgent) throws IOException {
-        DroneStatus status = new DroneStatus(droneId, state, zoneId, remainingAgent);
+        DroneStatus status = new DroneStatus(droneId, state, zoneId, remainingAgent, batteryLevel);
         Message msg = Message.droneStatus(droneId, status);
         byte[] out = msg.toBytes();
 
@@ -121,7 +125,7 @@ public class DroneSubsystem implements Runnable {
                                         Integer remainingAgent,
                                         double posX,
                                         double posY) throws IOException {
-        DroneStatus status = new DroneStatus(droneId, state, zoneId, remainingAgent, posX, posY);
+        DroneStatus status = new DroneStatus(droneId, state, zoneId, remainingAgent, batteryLevel, posX, posY);
         Message msg = Message.droneStatus(droneId, status);
         byte[] out = msg.toBytes();
 
@@ -134,7 +138,7 @@ public class DroneSubsystem implements Runnable {
     }
 
     private void sendDone() throws IOException {
-        DroneStatus status = new DroneStatus(droneId, state, null, remainingAgent, 0, 0);
+        DroneStatus status = new DroneStatus(droneId, state, null, remainingAgent, batteryLevel, 0, 0);
         Message doneMsg = Message.droneDone(droneId, status);
         byte[] out = doneMsg.toBytes();
 
@@ -229,6 +233,7 @@ public class DroneSubsystem implements Runnable {
         Thread.sleep(dropMs);
 
         remainingAgent = Math.max(0, remainingAgent - amountUsed);
+        batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_DROPPING);
         sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
 
         transition(DroneEvent.DROP_COMPLETE);
@@ -240,13 +245,13 @@ public class DroneSubsystem implements Runnable {
         transition(DroneEvent.RETURN_COMPLETE);
         currentZoneId = null;
 
+        batteryLevel = DEFAULT_BATTERY_CAPACITY;
         state = DroneState.IDLE;
         sendStatusWithPosition(state, null, remainingAgent, 0, 0);
         System.out.println("[DRONE " + droneId + "] Arrived at base");
 
         return true;
     }
-
 
     private boolean travelToZone(int zoneId, long totalMs, DroneCommand command)
             throws InterruptedException, IOException {
@@ -283,6 +288,9 @@ public class DroneSubsystem implements Runnable {
             double progress = (double) i / steps;
             double currX = dest[0] * progress;
             double currY = dest[1] * progress;
+
+            batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_PER_TRAVEL_STEP);
+
             sendStatusWithPosition(state, zoneId, remainingAgent, currX, currY);
 
             if (!faultInjected
@@ -304,6 +312,7 @@ public class DroneSubsystem implements Runnable {
                 travelToBaseFrom(currX, currY, remainingReturnMs, DroneState.RETURNING);
 
                 currentZoneId = null;
+                batteryLevel = DEFAULT_BATTERY_CAPACITY;
                 state = DroneState.IDLE;
                 sendStatusWithPosition(state, null, remainingAgent, 0, 0);
                 faultInjected = true;
@@ -331,6 +340,9 @@ public class DroneSubsystem implements Runnable {
             double progress = (double) i / steps;
             double currentX = startX * (1.0 - progress);
             double currentY = startY * (1.0 - progress);
+
+            batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_PER_TRAVEL_STEP);
+
             sendStatusWithPosition(reportState, null, remainingAgent, currentX, currentY);
         }
     }
