@@ -162,6 +162,7 @@ public class GUI extends JFrame {
     }
 
     private void showDroneInZone(DroneStatus st){
+        // Clear previous drone display in all zones
         for (Map.Entry<Integer, JLabel> entry : zoneInfoLabels.entrySet()) {
             String text = entry.getValue().getText();
             if (text.contains("Drone " + st.get_drone_id()) || text.contains("DRONE " + st.get_drone_id())) {
@@ -172,8 +173,9 @@ public class GUI extends JFrame {
         Integer zoneId = st.get_zone_id();
         if (zoneId == null) return;
 
+        // Show drone in zone during EN_ROUTE, DROPPING, RETURNING states
         switch (st.getState()){
-            case DROPPING -> {
+            case EN_ROUTE, DROPPING, RETURNING -> {
                 JLabel label = zoneInfoLabels.get(zoneId);
                 if (label != null){
                     label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
