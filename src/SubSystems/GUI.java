@@ -38,12 +38,22 @@ public class GUI extends JFrame {
         top.add(firesLabel);
         top.add(dronesLabel);
 
-        // 2x2 grid of zones
-        JPanel grid = new JPanel(new GridLayout(2, 2, 10, 10));
-        grid.add(makeZoneCell("Z(1)", 1));
-        grid.add(makeZoneCell("Z(2)", 2));
-        grid.add(makeZoneCell("Z(3)", 3));
-        grid.add(makeZoneCell("Z(4)", 4));
+        // Load zones dynamically from ZoneMap
+        Map<Integer, int[]> allZones = ZoneMap.getAllZones();
+        int zoneCount = allZones.size();
+
+        // Calculate grid dimensions (roughly square)
+        int cols = (int) Math.ceil(Math.sqrt(zoneCount));
+        int rows = (int) Math.ceil((double) zoneCount / cols);
+
+        JPanel grid = new JPanel(new GridLayout(rows, cols, 10, 10));
+
+        // Add zone cells dynamically
+        for (Map.Entry<Integer, int[]> entry : allZones.entrySet()) {
+            int zoneId = entry.getKey();
+            int[] coords = entry.getValue();
+            grid.add(makeZoneCell("Z(" + zoneId + ") [" + coords[0] + "," + coords[1] + "]", zoneId));
+        }
 
         // Sidebar
         dronePanel.setLayout(new BoxLayout(dronePanel, BoxLayout.Y_AXIS));
