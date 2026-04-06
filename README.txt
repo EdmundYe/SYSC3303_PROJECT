@@ -41,8 +41,13 @@ Asaad:
 - Minor GUI flicker glitch fix
 
 Edmund:
+- Updated UI to show drone location, fire status, and faults
+- Updated state diagrams
 
 Derrick:
+- added battery charge to drones
+- fixed stacking fire in zones bug
+- created timing diagrams for 2 fault situations
 
 Chenwei:
 
