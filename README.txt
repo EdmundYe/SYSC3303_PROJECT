@@ -50,6 +50,9 @@ Derrick:
 - created timing diagrams for 2 fault situations
 
 Chenwei:
+- Updated Class Diagram for battery, scheduler metrics, GUI, etc.
+- Fixed battery bugs
+- Updated dynamic zones
 
 Iteration 4:
 Derrick:
