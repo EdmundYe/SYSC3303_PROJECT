@@ -4,12 +4,7 @@ import MessageTransport.MessageTransporter;
 import common.*;
 
 import javax.swing.*;
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.net.*;
 import java.io.*;
 
@@ -22,6 +17,13 @@ public class SchedulerSubsystem implements Runnable {
     private static final String FIRE_INCIDENT_HOST = "localhost";
     private static final int BUFFER_SIZE = 4096;
     private static final int DEFAULT_DRONE_AGENT_CAPACITY = 100;
+    private static final Map<String, Integer> SEVERITY_DRONE_COUNT = Map.of(
+            "low",      1,
+            "moderate", 2,
+            "high",     3
+    );
+
+    private final Map<Integer, Integer> zoneActiveDroneCount = new HashMap<>();
 
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
@@ -117,11 +119,11 @@ public class SchedulerSubsystem implements Runnable {
     private void handleFireEvent(Message msg, InetAddress address, int port) {
         FireEvent event = (FireEvent) msg.getPayload();
 
-        if (isZoneActive(event.getZoneId()) || isZonePending(event.getZoneId())) {
-            System.out.println("[SCHEDULER] Ignoring duplicate FIRE_EVENT for zone " + event.getZoneId());
-            sendAckToFireIncident(address, port);
-            return;
-        }
+//        if (isZoneActive(event.getZoneId()) || isZonePending(event.getZoneId())) {
+//            System.out.println("[SCHEDULER] Ignoring duplicate FIRE_EVENT for zone " + event.getZoneId());
+//            sendAckToFireIncident(address, port);
+//            return;
+//        }
 
         pendingEvents.add(event);
         metrics.recordFireDetected(event);
@@ -187,8 +189,6 @@ public class SchedulerSubsystem implements Runnable {
         updateDroneEndpoint(drone, address, port);
 
         FireEvent completedEvent = drone.assignedEvent;
-        releaseZoneForEvent(completedEvent);
-
         drone.markIdle();
         drone.remainingAgent = status.get_remaining_agent();
         drone.batteryLevel = status.get_battery_level();
@@ -196,14 +196,17 @@ public class SchedulerSubsystem implements Runnable {
         metrics.recordDroneDone(droneId);
 
         if (completedEvent != null) {
-            notifyFireOut(completedEvent);
-            metrics.recordFireOut(completedEvent);
+            int zoneId = completedEvent.getZoneId();
+            int remaining = zoneActiveDroneCount.getOrDefault(zoneId, 1) - 1;
+            zoneActiveDroneCount.put(zoneId, remaining);
+            if (remaining <= 0){
+                zoneActiveDroneCount.remove(zoneId);
+                releaseZoneForEvent(completedEvent);
+                notifyFireOut(completedEvent);
+                metrics.recordFireOut(completedEvent);
+                if (counts != null) counts.decActiveFires();
+            }
         }
-
-        if (counts != null && completedEvent != null) {
-            counts.decActiveFires();
-        }
-
         tryDispatchIfPossible();
         refreshSchedulerState();
         maybePrintMetricsReport();
@@ -276,45 +279,64 @@ public class SchedulerSubsystem implements Runnable {
         refreshSchedulerState();
 
         while (!pendingEvents.isEmpty()) {
-            FireEvent dispatchableEvent = null;
-            DroneInfo bestDrone = null;
+            boolean dispatched = false;
+            for (FireEvent event : new ArrayList<>(pendingEvents)) {
+                if (isZoneActive(event.getZoneId())) continue;
 
-            for (FireEvent event : pendingEvents) {
-                if (isZoneActive(event.getZoneId())) {
-                    continue;
+                String severity = event.getSeverity().toString().toLowerCase();
+                int dronesNeeded = SEVERITY_DRONE_COUNT.getOrDefault(severity,1);
+
+                List<DroneInfo> dronesList = new ArrayList<>();
+                Set<Integer> assignedIds = new HashSet<>();
+
+                for (int i = 0; i < dronesNeeded; i++){
+                    DroneInfo candidate = findBestDroneForNextEvent(event, assignedIds, dronesNeeded);
+                    if (candidate == null) break;
+                    dronesList.add(candidate);
+                    assignedIds.add(candidate.droneId);
                 }
-
-                DroneInfo candidate = findBestDroneForNextEvent(event);
-                if (candidate != null) {
-                    dispatchableEvent = event;
-                    bestDrone = candidate;
-                    break;
+                if (dronesList.isEmpty()) continue;
+                pendingEvents.remove(event);
+                if(dronesList.size() == 1){
+                    dispatch(dronesList.getFirst(), event);
+                } else{
+                    dispatchMultiple(dronesList, event);
                 }
-            }
-
-            if (dispatchableEvent == null || bestDrone == null) {
+                transition(SchedulerEvent.DISPATCH_SENT);
                 refreshSchedulerState();
-                return;
+                dispatched = true;
+                break;
+//                DroneInfo candidate = findBestDroneForNextEvent(event);
+//                if (candidate != null) {
+//                    dispatchableEvent = event;
+//                    bestDrone = candidate;
+//                    break;
+//                }
             }
-
-            pendingEvents.remove(dispatchableEvent);
-            dispatch(bestDrone, dispatchableEvent);
-
-            transition(SchedulerEvent.DISPATCH_SENT);
-            refreshSchedulerState();
+            if (!dispatched) return;
+//            if (dispatchableEvent == null || bestDrone == null) {
+//                refreshSchedulerState();
+//                return;
+//            }
+//
+//            pendingEvents.remove(dispatchableEvent);
+//            dispatch(bestDrone, dispatchableEvent);
+//            transition(SchedulerEvent.DISPATCH_SENT);
+//            refreshSchedulerState();
         }
-
-        refreshSchedulerState();
+//        refreshSchedulerState();
     }
 
-    private DroneInfo findBestDroneForNextEvent(FireEvent event) {
+    private DroneInfo findBestDroneForNextEvent(FireEvent event, Set<Integer> excludedIds, int dronesNeeded) {
         int requestedZone = event.getZoneId();
-        int requiredAgent = event.getSeverity().requiredAgentLitres(); // How much agent required
+        int requiredAgent = (int) Math.ceil((double) event.getSeverity().requiredAgentLitres() / dronesNeeded); // How much agent required
 
         DroneInfo best = null;
         double bestScore = Double.MAX_VALUE;
 
         for (DroneInfo drone : drones.values()) {
+            if (excludedIds.contains(drone.droneId)) continue;
+
             if (drone.remainingAgent != null && drone.remainingAgent < requiredAgent) {
                 continue;
             }
@@ -352,16 +374,19 @@ public class SchedulerSubsystem implements Runnable {
 
     private void dispatch(DroneInfo drone, FireEvent event) {
         activeZones.add(event.getZoneId());
+        zoneActiveDroneCount.put(event.getZoneId(), 1);
         drone.markBusy(event);
         if (drone.remainingAgent == null) {
             drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
         }
+        int agentAmount = event.getSeverity().requiredAgentLitres();
 
         DroneCommand command = new DroneCommand(
                 "REQ-" + event.getTimestamp().toEpochMilli(),
                 DroneCommandOptions.DISPATCH,
                 event.getZoneId(),
                 event.getSeverity(),
+                agentAmount,
                 event.getFaultType(),
                 event.getFaultDelaySeconds()
         );
@@ -387,6 +412,51 @@ public class SchedulerSubsystem implements Runnable {
                 + " to zone " + event.getZoneId()
                 + " (" + event.getSeverity()
                 + ", fault=" + event.getFaultType() + ")");
+    }
+
+    private void dispatchMultiple(List<DroneInfo> listOfDrones, FireEvent event){
+        activeZones.add(event.getZoneId());
+        zoneActiveDroneCount.put(event.getZoneId(), listOfDrones.size());
+        int totalAgent = event.getSeverity().requiredAgentLitres();
+        int agentPerDrone = (int) Math.ceil((double) totalAgent/listOfDrones.size());
+        for(DroneInfo drone : listOfDrones){
+            drone.markBusy(event);
+            if (drone.remainingAgent == null){
+                drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
+            }
+
+            DroneCommand command = new DroneCommand(
+                    "REQ-" + event.getTimestamp().toEpochMilli(),
+                    DroneCommandOptions.DISPATCH,
+                    event.getZoneId(),
+                    event.getSeverity(),
+                    agentPerDrone,
+                    event.getFaultType(),
+                    event.getFaultDelaySeconds()
+            );
+
+            Message taskMessage = Message.droneTask(drone.droneId, command);
+            byte[] payload = taskMessage.toBytes();
+
+            DatagramPacket packet = new DatagramPacket(
+                    payload,
+                    payload.length,
+                    drone.getListenAddress(),
+                    drone.getListenPort()
+            );
+
+            try {
+                sendSocket.send(packet);
+                sendToGUI(taskMessage);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
+            }
+
+            System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
+                    + " to zone " + event.getZoneId()
+                    + " (" + event.getSeverity()
+                    + ", fault=" + event.getFaultType() + ")");
+        }
     }
 
     private boolean isZoneActive(int zoneId) {

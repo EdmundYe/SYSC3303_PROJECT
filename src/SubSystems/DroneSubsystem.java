@@ -19,6 +19,7 @@ public class DroneSubsystem implements Runnable {
     private static final int ACCELERATION = 6; // m/s
     private static final int DECELERATION = 4; // m/s
     private static final int RESET_TIME_MS = 3000;
+    private static final double SIMULATION_SPEED = 10.0;
 
     private final int droneId;
     private DroneState state = DroneState.IDLE;
@@ -84,7 +85,7 @@ public class DroneSubsystem implements Runnable {
                     // no message this cycle
                 }
 
-                Thread.sleep(500);
+                Thread.sleep((long)(500 / SIMULATION_SPEED));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -190,7 +191,7 @@ public class DroneSubsystem implements Runnable {
 
     private boolean executeCommand(DroneCommand command) throws InterruptedException, IOException {
         currentZoneId = command.get_zone_id();
-        int amountUsed = command.getSeverity().requiredAgentLitres();
+        int amountUsed = command.getAgentAmount();
 
         transition(DroneEvent.TASK_RECEIVED);
 
@@ -227,12 +228,12 @@ public class DroneSubsystem implements Runnable {
         }
 
         System.out.println("[DRONE " + droneId + "] Door opened");
-        Thread.sleep(TIME_TO_OPEN_DOOR);
+        Thread.sleep((long) (TIME_TO_OPEN_DOOR / SIMULATION_SPEED));
 
         System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
         long droppingSteps = Math.max(1, dropMs / 2000);
         for (int i = 0; i < droppingSteps; i++) {
-            Thread.sleep(Math.max(1, dropMs / droppingSteps));
+            Thread.sleep(Math.max(1, (long) (((double) dropMs / droppingSteps) / SIMULATION_SPEED)));
             batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_DROPPING);
             sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
         }
@@ -304,7 +305,7 @@ public class DroneSubsystem implements Runnable {
                 sendStatusWithPosition(state, zoneId, remainingAgent, currX, currY);
                 sendFault(FaultType.DRONE_STUCK, zoneId, true);
 
-                Thread.sleep(RESET_TIME_MS);
+                Thread.sleep( (long) (RESET_TIME_MS / SIMULATION_SPEED));
                 transition(DroneEvent.RECOVERED);
 
                 state = DroneState.RETURNING;
@@ -351,7 +352,7 @@ public class DroneSubsystem implements Runnable {
 
     private long computeDropTimeMs(int litresToDrop) {
         double seconds = litresToDrop / WATER_DROP_RATE;
-        return (long) Math.ceil(seconds * 1000);
+        return (long) Math.ceil((seconds * 1000) / SIMULATION_SPEED);
     }
 
     private long computeTravelTimeMs(double distanceMeters) {
@@ -360,7 +361,7 @@ public class DroneSubsystem implements Runnable {
         double peakSpeed = Math.sqrt((2 * distanceMeters * ACCELERATION * DECELERATION) / (ACCELERATION + DECELERATION));
         double timeAccelerate = peakSpeed / ACCELERATION;
         double timeDecelerate = peakSpeed / DECELERATION;
-        return Math.max(1, (long) Math.ceil((timeAccelerate + timeDecelerate) * 1000));
+        return Math.max(1, (long) Math.ceil((timeAccelerate + timeDecelerate) * 1000 / SIMULATION_SPEED));
     }
 
     private void transition(DroneEvent event) {

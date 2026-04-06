@@ -11,13 +11,15 @@ public final class DroneCommand implements Serializable {
     private final Severity severity;
     private final FaultType faultType;
     private final int faultDelaySeconds;
+    private final int agentAmount;
 
     // Old constructor kept for backward compatibility with deprecated tests
     public DroneCommand(String request_id,
                         DroneCommandOptions command_option,
                         int zone_id,
-                        Severity severity) {
-        this(request_id, command_option, zone_id, severity, FaultType.NONE, 0);
+                        Severity severity,
+                        int agentAmount) {
+        this(request_id, command_option, zone_id, severity, agentAmount, FaultType.NONE, 0);
     }
 
     // New Iteration 4 constructor
@@ -25,12 +27,14 @@ public final class DroneCommand implements Serializable {
                         DroneCommandOptions command_option,
                         int zone_id,
                         Severity severity,
+                        int agentAmount,
                         FaultType faultType,
                         int faultDelaySeconds) {
         this.request_id = Objects.requireNonNull(request_id);
         this.command_option = Objects.requireNonNull(command_option);
         this.zone_id = zone_id;
         this.severity = Objects.requireNonNull(severity);
+        this.agentAmount = agentAmount;
         this.faultType = faultType != null ? faultType : FaultType.NONE;
         this.faultDelaySeconds = Math.max(0, faultDelaySeconds);
     }
@@ -39,6 +43,7 @@ public final class DroneCommand implements Serializable {
     public DroneCommandOptions get_command_option() { return command_option; }
     public int get_zone_id() { return zone_id; }
     public Severity getSeverity() { return severity; }
+    public int getAgentAmount() {return agentAmount;}
     public FaultType getFaultType() { return faultType; }
     public int getFaultDelaySeconds() { return faultDelaySeconds; }
 

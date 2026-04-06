@@ -35,7 +35,7 @@ class DroneIntegrationTest {
             assertEquals(1, (int) poll.getPayload());
 
             // Send a task to the drone
-            DroneCommand cmd = new DroneCommand("REQ-1", DroneCommandOptions.DISPATCH, 7, Severity.HIGH);
+            DroneCommand cmd = new DroneCommand("REQ-1", DroneCommandOptions.DISPATCH, 7, Severity.HIGH, 10);
             mt.send(SendAddress.DRONE, Message.droneTask(1, cmd));
 
             // Wait for DRONE_DONE: keep receiving messages and ignore non-DRONE_DONE ones until timeout.

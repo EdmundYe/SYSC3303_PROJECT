@@ -277,7 +277,8 @@ class DroneSubsystemTest {
                     "1",
                     DroneCommandOptions.DISPATCH,
                     3,
-                    Severity.HIGH
+                    Severity.HIGH,
+                    10
             );
             testTransporter.send(SendAddress.DRONE, Message.droneTask(droneId, command));
             // sleep for 10 secs to allow drone to complete task
@@ -309,7 +310,7 @@ class DroneSubsystemTest {
         Thread droneThread = new Thread(testDrone);
         droneThread.start();
         try{
-            DroneCommand testCommand = new DroneCommand("1", DroneCommandOptions.DISPATCH, 1, Severity.HIGH);
+            DroneCommand testCommand = new DroneCommand("1", DroneCommandOptions.DISPATCH, 1, Severity.HIGH, 10);
             int droneId = 1;
             testTransporter.send(SendAddress.DRONE, Message.droneTask(droneId, testCommand));
 
