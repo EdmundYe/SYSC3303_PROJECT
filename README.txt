@@ -36,7 +36,9 @@ Iteration progress:
 
 Iteration 5:
 
-Assad:
+Asaad:
+- Updated GUI for further drone visibility and visualization
+- Minor GUI flicker glitch fix
 
 Edmund:
 
