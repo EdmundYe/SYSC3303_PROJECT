@@ -302,7 +302,7 @@ public class FireIncidentSubsystem implements Runnable {
     }
 
     public static void main(String[] args) {
-        String csv = "src/input.csv";
+        String csv = "src/Final_event_file_w26.csv";
         if (args.length > 0) {
             csv = args[0];
         }

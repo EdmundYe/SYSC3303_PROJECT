@@ -9,7 +9,7 @@ import javax.swing.SwingUtilities;
 public class Main {
     public static void main(String[] args) {
         int numberOfDrones = 20;
-        String inputFile = "src/input.csv";
+        String inputFile = "src/Final_event_file_w26.csv";
 
         SystemCounts counts = new SystemCounts();
         counts.setTotalDrones(numberOfDrones);
