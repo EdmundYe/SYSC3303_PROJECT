@@ -27,12 +27,22 @@ Run each test individually or via your IDE's test runner
 Project Structure
 src/ — Main source code including scheduler, drone subsystem, and SubSystems.GUI components
 src/tests/ — JUnit 5 test files
-iteration2-class-diagram — UML class diagram reflecting Iteration 2 changes
+iteration5-UML-class-diagram — UML class diagram reflecting Iteration 5 changes
 iteration2-sequence-diagram — Sequence diagram showing scheduler-drone message passing
-drone-state-machine-diagram - State machine diagram showing drone states and event triggers
-scheduler-state-machine-diagram - State machine diagram showing scheduler states and event triggers
+drone_subsystem_state_machine_diagram - State machine diagram showing drone states and event triggers
+scheduler_subsystem_state_machine_diagram - State machine diagram showing scheduler states and event triggers
 
 Iteration progress:
+
+Iteration 5:
+
+Assad:
+
+Edmund:
+
+Derrick:
+
+Chenwei:
 
 Iteration 4:
 Derrick:
