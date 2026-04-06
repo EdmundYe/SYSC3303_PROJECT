@@ -520,8 +520,8 @@ public class GUI extends JFrame {
 
                     // id label
                     g2.setColor(Color.BLACK);
-                    g2.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
-                    g2.drawString("D" + id, (int) (x + 8), (int) (y + 4));
+                    g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+                    g2.drawString("D" + id, (int) (x + 9), (int) (y + 4));
                 }
             } finally {
                 g2.dispose();
