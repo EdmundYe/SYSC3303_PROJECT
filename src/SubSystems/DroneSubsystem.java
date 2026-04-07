@@ -245,9 +245,11 @@ public class DroneSubsystem implements Runnable {
         if (common.DebugOutputFilter.isDroneOutputActive())
             System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
         long droppingSteps = Math.max(1, dropMs / 2000);
+        int agentPerStep = (int) Math.ceil((double) amountUsed / droppingSteps);
         for (int i = 0; i < droppingSteps; i++) {
             Thread.sleep(Math.max(1, (long) (((double) dropMs / droppingSteps) / SIMULATION_SPEED)));
             batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_DROPPING);
+            remainingAgent = Math.max(0, remainingAgent - agentPerStep);
             sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
         }
 

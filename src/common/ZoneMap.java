@@ -14,7 +14,7 @@ Map class to help with drone tracking
 public class ZoneMap {
     private static volatile Map<Integer, int[]> COORDS = null; // centers
     private static volatile Map<Integer, int[]> BOUNDS = null; // [x1,y1,x2,y2]
-    private static final String ZONES_FILE = "src/zones.csv";
+    private static final String ZONES_FILE = "src/Final_zone_file_w26.csv";
 
     // Default backup zones - centers computed from rectangle examples
     private static final Map<Integer, int[]> DEFAULT_COORDS = Map.of(

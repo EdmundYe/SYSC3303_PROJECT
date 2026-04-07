@@ -1,10 +1,7 @@
 import SubSystems.DroneSubsystem;
 import SubSystems.FireIncidentSubsystem;
-import SubSystems.GUI;
 import SubSystems.SchedulerSubsystem;
 import common.SystemCounts;
-
-import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) {

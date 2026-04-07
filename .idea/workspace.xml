@@ -5,15 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="260e008f-10f7-4a12-9fbd-868217b302ed" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/common/DebugOutputFilter.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/metrics_report.txt" beforeDir="false" afterPath="$PROJECT_DIR$/metrics_report.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" beforeDir="false" afterPath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/FireIncidentSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/GUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/GUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/common/ZoneMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/common/ZoneMap.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/zones.csv" beforeDir="false" afterPath="$PROJECT_DIR$/src/zones.csv" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
