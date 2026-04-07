@@ -165,7 +165,6 @@ public class GUI extends JFrame {
         }
         dronePanel.revalidate();
 
-
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setPreferredSize(new Dimension(550, 0));
@@ -208,6 +207,7 @@ public class GUI extends JFrame {
             }
         });
         animationTimer.start();
+
         final JLayeredPane mapPanelFinal = mapPanel;
         final Map<Integer,int[]> allZoneBoundsFinal = new LinkedHashMap<>(allZoneBounds);
         final double minXFinal = minX;
@@ -224,7 +224,6 @@ public class GUI extends JFrame {
                 repositionZoneWrappers(mapPanelFinal, allZoneBoundsFinal, minXFinal, minYFinal, maxXFinal, maxYFinal, padFinal);
             }
         });
-
     }
 
     private JLabel boldLabel(String text) {
@@ -235,7 +234,6 @@ public class GUI extends JFrame {
     }
 
     private JPanel makeZoneCell(String label, int zoneId, int[] bounds) {
-        // kept for compatibility but not used in the new layout
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(Color.WHITE);
         p.setBorder(BorderFactory.createLineBorder(new Color(150, 110, 200), 2));
@@ -245,7 +243,6 @@ public class GUI extends JFrame {
         l.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         p.add(l, BorderLayout.NORTH);
 
-        // center panel that holds the canvas and the info label
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setOpaque(false);
 
@@ -305,19 +302,16 @@ public class GUI extends JFrame {
         }
     }
 
-
-
     public void handleIncomingMessage(Message msg) {
         switch (msg.getType()) {
             case DRONE_STATUS, DRONE_DONE -> {
                 DroneStatus st = (DroneStatus) msg.getPayload();
                 drones.put(st.get_drone_id(), st);
                 updateDroneRow(st);
-
                 showDronesInZones();
             }
             case DRONE_TASK -> {
-                // no-op for now
+                // no-op
             }
             case FIRE_EVENT -> {
                 if (!(msg.getPayload() instanceof FireEvent ev)) {
@@ -331,9 +325,14 @@ public class GUI extends JFrame {
             case FIRE_OUT -> {
                 FireEvent ev = (FireEvent) msg.getPayload();
                 zones.remove(ev.getZoneId());
-                markZoneExtinguished(ev);
-                firesLabel.setText("Active fires: " + zones.size());
-                showDronesInZones();
+
+                Timer timer = new Timer(600, e -> {
+                    markZoneExtinguished(ev);
+                    firesLabel.setText("Active fires: " + zones.size());
+                    showDronesInZones();
+                });
+                timer.setRepeats(false);
+                timer.start();
             }
             case DRONE_FAULT -> {
                 DroneFault fault = (DroneFault) msg.getPayload();
@@ -342,13 +341,15 @@ public class GUI extends JFrame {
                 showDronesInZones();
             }
         }
-        repaint();
     }
 
     private void showDronesInZones() {
         Map<Integer, List<String>> occupantsByZone = new HashMap<>();
+        Map<Integer, Boolean> workingZone = new HashMap<>();
+
         for (Map.Entry<Integer, JLabel> entry : zoneInfoLabels.entrySet()) {
             occupantsByZone.put(entry.getKey(), new ArrayList<>());
+            workingZone.put(entry.getKey(), false);
         }
 
         for (DroneStatus st : drones.values()) {
@@ -356,11 +357,30 @@ public class GUI extends JFrame {
             if (droneZoneId == null) continue;
 
             switch (st.getState()) {
-                case EN_ROUTE, DROPPING, RETURNING, FAULTED, OFFLINE ->
-                        occupantsByZone.computeIfAbsent(droneZoneId, k -> new ArrayList<>())
-                                .add("Drone " + st.get_drone_id() + " - " + st.getState());
+                case EN_ROUTE, DROPPING, RETURNING, FAULTED, OFFLINE -> {
+                    occupantsByZone.computeIfAbsent(droneZoneId, k -> new ArrayList<>())
+                            .add("Drone " + st.get_drone_id() + " - " + st.getState());
+
+                    if (st.getState() == DroneState.EN_ROUTE
+                            || st.getState() == DroneState.DROPPING
+                            || st.getState() == DroneState.FAULTED) {
+                        workingZone.put(droneZoneId, true);
+                    }
+                }
                 default -> {
                 }
+            }
+        }
+
+        for (Integer zoneId : zonePanels.keySet()) {
+            JPanel p = zonePanels.get(zoneId);
+            if (p == null) continue;
+
+            if (zones.containsKey(zoneId)) {
+                updateZoneColor(zones.get(zoneId));
+            } else if (Boolean.TRUE.equals(workingZone.get(zoneId))) {
+                // Safety resync: if drones are still inbound/working, do not leave it green
+                p.setBackground(Color.YELLOW);
             }
         }
 
@@ -393,6 +413,8 @@ public class GUI extends JFrame {
             List<DroneStatus> list = perZone.getOrDefault(zid, Collections.emptyList());
             c.setDrones(list);
         }
+
+        repaint();
     }
 
     private void updateDroneRow(DroneStatus st) {
@@ -501,19 +523,13 @@ public class GUI extends JFrame {
         }
     }
 
-    // Inner class: ZoneCanvas
-    // Draws zone rectangle (start/end) and animates drones relative to the zone center.
     private static class ZoneCanvas extends JComponent {
-        // per-drone animation state keyed by drone id
         private final Map<Integer, DroneAnim> anims = new ConcurrentHashMap<>();
-        // animation parameters
         private final double baseRadius = 18.0;
 
-        // world bounds for this zone: [x1,y1,x2,y2]
         private final int worldX1, worldY1, worldX2, worldY2;
 
         ZoneCanvas(int zoneId, int[] bounds) {
-            // bounds expected as [x1,y1,x2,y2]
             if (bounds != null && bounds.length == 4) {
                 this.worldX1 = bounds[0];
                 this.worldY1 = bounds[1];
@@ -529,9 +545,7 @@ public class GUI extends JFrame {
             setOpaque(false);
         }
 
-        // Map a world coordinate (wx,wy) into canvas coordinates with padding
         private Point2D.Double worldToCanvas(double wx, double wy, int w, int h) {
-            // Add small padding inside canvas
             double pad = 8.0;
             double availW = Math.max(10, w - 2 * pad);
             double availH = Math.max(10, h - 2 * pad);
@@ -544,15 +558,14 @@ public class GUI extends JFrame {
             double worldW = Math.max(1.0, wx2 - wx1);
             double worldH = Math.max(1.0, wy2 - wy1);
 
-            double nx = (wx - wx1) / worldW; // 0..1
-            double ny = (wy - wy1) / worldH; // 0..1
+            double nx = (wx - wx1) / worldW;
+            double ny = (wy - wy1) / worldH;
 
             double cx = pad + nx * availW;
             double cy = pad + ny * availH;
             return new Point2D.Double(cx, cy);
         }
 
-        // Always show all drones passed in. New drones ARRIVE from edge. Missing drones LEAVE outward.
         void setDrones(List<DroneStatus> dronesList) {
             Set<Integer> newIds = new HashSet<>();
             int idx = 0;
@@ -561,16 +574,13 @@ public class GUI extends JFrame {
                 newIds.add(id);
                 DroneAnim a = anims.get(id);
                 if (a == null) {
-                    // new arrival: start at random edge point
                     Point2D.Double start = randomEdgePoint();
                     double targetR = baseRadius + (idx % 3) * 6;
                     a = new DroneAnim(st, start.x, start.y, targetR);
                     a.state = DronePhase.ARRIVING;
                     anims.put(id, a);
                 } else {
-                    // update status payload so color/state reflect latest info
                     a.status = st;
-                    // if it was leaving but reappeared, bring it back to arriving to animate re-entry
                     if (a.state == DronePhase.LEAVING) {
                         a.state = DronePhase.ARRIVING;
                     }
@@ -578,13 +588,11 @@ public class GUI extends JFrame {
                 idx++;
             }
 
-            // mark missing drones as leaving
             for (Integer id : new ArrayList<>(anims.keySet())) {
                 if (!newIds.contains(id)) {
                     DroneAnim a = anims.get(id);
                     if (a != null && a.state != DronePhase.LEAVING) {
                         a.state = DronePhase.LEAVING;
-                        // compute outward direction from zone center in canvas coords
                         a.computeLeaveVector(getWidth(), getHeight());
                     }
                 }
@@ -596,7 +604,6 @@ public class GUI extends JFrame {
             int w = getWidth();
             int h = getHeight();
 
-            // compute zone center in canvas coords
             double centerWorldX = (worldX1 + worldX2) / 2.0;
             double centerWorldY = (worldY1 + worldY2) / 2.0;
             Point2D.Double centerCanvas = worldToCanvas(centerWorldX, centerWorldY, w, h);
@@ -608,17 +615,13 @@ public class GUI extends JFrame {
                 DroneAnim a = en.getValue();
                 switch (a.state) {
                     case ARRIVING -> {
-                        // move toward zone center
                         double dx = cx - a.x;
                         double dy = cy - a.y;
                         double dist = Math.hypot(dx, dy);
-                        // pixels per tick for arrival
                         double arriveSpeed = 12.0;
                         if (dist <= arriveSpeed + 1.0) {
-                            // arrived: switch to circling
                             a.state = DronePhase.CIRCLING;
                             a.angle = Math.random() * Math.PI * 2;
-                            // set radius if not set
                             if (a.radius <= 0) a.radius = baseRadius;
                         } else {
                             a.x += (dx / dist) * arriveSpeed;
@@ -626,7 +629,6 @@ public class GUI extends JFrame {
                         }
                     }
                     case CIRCLING -> {
-                        // radians per tick for circling
                         double angularSpeed = 0.25;
                         a.angle += angularSpeed;
                         double r = a.radius > 0 ? a.radius : baseRadius;
@@ -634,12 +636,9 @@ public class GUI extends JFrame {
                         a.y = cy + Math.sin(a.angle + a.offset) * r;
                     }
                     case LEAVING -> {
-                        // move along leave vector
-                        // pixels per tick for leaving
                         double leaveSpeed = 14.0;
                         a.x += a.leaveVx * leaveSpeed;
                         a.y += a.leaveVy * leaveSpeed;
-                        // if outside canvas bounds by margin, remove
                         if (a.x < -20 || a.x > w + 20 || a.y < -20 || a.y > h + 20) {
                             it.remove();
                         }
@@ -657,12 +656,9 @@ public class GUI extends JFrame {
                 int w = getWidth();
                 int h = getHeight();
 
-                // subtle background
                 g2.setColor(new Color(245, 245, 245));
                 g2.fillRect(0, 0, w, h);
 
-                // draw zone rectangle mapped from world bounds
-                // compute canvas coords for corners
                 Point2D.Double c1 = worldToCanvas(worldX1, worldY1, w, h);
                 Point2D.Double c2 = worldToCanvas(worldX2, worldY2, w, h);
 
@@ -671,22 +667,18 @@ public class GUI extends JFrame {
                 double rw = Math.abs(c2.x - c1.x);
                 double rh = Math.abs(c2.y - c1.y);
 
-                // filled subtle zone area
                 g2.setColor(new Color(230, 240, 255, 60));
                 g2.fillRect((int) rx, (int) ry, (int) Math.max(1, rw), (int) Math.max(1, rh));
 
-                // rectangle border
                 g2.setColor(new Color(100, 140, 200));
                 g2.setStroke(new BasicStroke(2f));
                 g2.drawRect((int) rx, (int) ry, (int) Math.max(1, rw), (int) Math.max(1, rh));
 
-                // draw each anim (drones)
                 for (DroneAnim a : anims.values()) {
                     int id = a.status.get_drone_id();
                     double x = a.x;
                     double y = a.y;
 
-                    // color by state
                     Color c = switch (a.status.getState()) {
                         case IDLE -> Color.GRAY;
                         case EN_ROUTE -> Color.BLUE;
@@ -697,17 +689,14 @@ public class GUI extends JFrame {
                         default -> Color.BLACK;
                     };
 
-                    // halo for busy drones
                     if (a.status.getState() != DroneState.IDLE && a.status.getState() != DroneState.DONE) {
                         g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 80));
                         g2.fillOval((int) (x - 10), (int) (y - 10), 20, 20);
                     }
 
-                    // drone circle
                     g2.setColor(c);
                     g2.fillOval((int) (x - 6), (int) (y - 6), 12, 12);
 
-                    // id label
                     g2.setColor(Color.BLACK);
                     g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
                     g2.drawString("D" + id, (int) (x + 9), (int) (y + 4));
@@ -717,36 +706,29 @@ public class GUI extends JFrame {
             }
         }
 
-        // helper: random point on canvas edge
         private Point2D.Double randomEdgePoint() {
             int w = Math.max(1, getWidth());
             int h = Math.max(1, getHeight());
             double side = Math.random();
             if (side < 0.25) {
-                // left edge
                 return new Point2D.Double(-10, Math.random() * h);
             } else if (side < 0.5) {
-                // right edge
                 return new Point2D.Double(w + 10, Math.random() * h);
             } else if (side < 0.75) {
-                // top edge
                 return new Point2D.Double(Math.random() * w, -10);
             } else {
-                // bottom edge
                 return new Point2D.Double(Math.random() * w, h + 10);
             }
         }
 
-        // Drone animation record
         private static class DroneAnim {
             DroneStatus status;
             double x;
             double y;
             double radius;
             double angle;
-            double offset; // small offset so multiple drones don't overlap exactly
+            double offset;
             DronePhase state;
-            // leaving vector normalized
             double leaveVx;
             double leaveVy;
 
@@ -769,7 +751,6 @@ public class GUI extends JFrame {
                 double dy = y - cy;
                 double dist = Math.hypot(dx, dy);
                 if (dist == 0) {
-                    // random outward
                     double a = Math.random() * Math.PI * 2;
                     leaveVx = Math.cos(a);
                     leaveVy = Math.sin(a);

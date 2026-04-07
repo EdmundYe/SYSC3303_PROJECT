@@ -144,7 +144,15 @@ public class DroneSubsystem implements Runnable {
     }
 
     private void sendDone() throws IOException {
-        DroneStatus status = new DroneStatus(droneId, state, null, remainingAgent, batteryLevel, 0, 0);
+        DroneStatus status = new DroneStatus(
+                droneId,
+                state,
+                currentZoneId,
+                remainingAgent,
+                batteryLevel,
+                0,
+                0
+        );
         Message doneMsg = Message.droneDone(droneId, status);
         byte[] out = doneMsg.toBytes();
 
@@ -152,8 +160,6 @@ public class DroneSubsystem implements Runnable {
                 out, out.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
         );
         socket.send(packet);
-        if (common.DebugOutputFilter.isDroneOutputActive())
-            System.out.println("[DRONE " + droneId + "] Task completed and reported");
     }
 
     private void sendFault(FaultType faultType, int zoneId, boolean recoverable) throws IOException {

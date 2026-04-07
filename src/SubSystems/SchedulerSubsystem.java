@@ -23,10 +23,7 @@ public class SchedulerSubsystem implements Runnable {
             "high",     3
     );
 
-    // Kept for compatibility with the rest of the scheduler logic, but rebuilt
-    // from the drones map before dispatching so it cannot go stale.
     private final Map<Integer, Integer> zoneActiveDroneCount = new HashMap<>();
-
     private final Map<Integer, DroneInfo> drones = new HashMap<>();
     private final Queue<FireEvent> pendingEvents = new ArrayDeque<>();
     private final Set<Integer> activeZones = new HashSet<>();
@@ -263,6 +260,10 @@ public class SchedulerSubsystem implements Runnable {
                     0
             );
             pendingEvents.add(retryEvent);
+
+            // GUI resync: mark this zone active again immediately
+            sendToGUI(Message.fireEvent(retryEvent));
+
             if (common.DebugOutputFilter.isSchedulerOutputActive())
                 System.out.println("[SCHEDULER] Requeued clean event for zone " + failedEvent.getZoneId());
         }
@@ -434,15 +435,18 @@ public class SchedulerSubsystem implements Runnable {
         try {
             sendSocket.send(packet);
             sendToGUI(taskMessage);
+
+            // GUI resync: if a zone was previously green, force it back to active
+            sendToGUI(Message.fireEvent(event));
         } catch (IOException e) {
             throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
         }
 
         if (common.DebugOutputFilter.isSchedulerOutputActive())
             System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
-                + " to zone " + event.getZoneId()
-                + " (" + event.getSeverity()
-                + ", fault=" + event.getFaultType() + ")");
+                    + " to zone " + event.getZoneId()
+                    + " (" + event.getSeverity()
+                    + ", fault=" + event.getFaultType() + ")");
     }
 
     private void dispatchMultiple(List<DroneInfo> listOfDrones, FireEvent event) {
@@ -482,15 +486,18 @@ public class SchedulerSubsystem implements Runnable {
             try {
                 sendSocket.send(packet);
                 sendToGUI(taskMessage);
+
+                // GUI resync
+                sendToGUI(Message.fireEvent(event));
             } catch (IOException e) {
                 throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
             }
 
             if (common.DebugOutputFilter.isSchedulerOutputActive())
                 System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
-                    + " to zone " + event.getZoneId()
-                    + " (" + event.getSeverity()
-                    + ", fault=" + event.getFaultType() + ")");
+                        + " to zone " + event.getZoneId()
+                        + " (" + event.getSeverity()
+                        + ", fault=" + event.getFaultType() + ")");
         }
     }
 
