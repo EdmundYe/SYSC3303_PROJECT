@@ -60,7 +60,8 @@ public class DroneSubsystem implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("[DRONE " + droneId + "] Drone subsystem started");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Drone subsystem started");
 
         try {
             while (!Thread.currentThread().isInterrupted()) {
@@ -95,7 +96,8 @@ public class DroneSubsystem implements Runnable {
             throw new RuntimeException(e);
         }
 
-        System.out.println("[DRONE " + droneId + "] Drone subsystem stopped");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Drone subsystem stopped");
     }
 
     private void sendPoll() throws IOException {
@@ -106,7 +108,8 @@ public class DroneSubsystem implements Runnable {
                 data, data.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
         );
         socket.send(packet);
-        System.out.println("[DRONE " + droneId + "] Polling scheduler for tasks");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Polling scheduler for tasks");
     }
 
     private void sendStatus(DroneState state, Integer zoneId, Integer remainingAgent) throws IOException {
@@ -118,7 +121,8 @@ public class DroneSubsystem implements Runnable {
                 out, out.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
         );
         socket.send(packet);
-        System.out.println("[DRONE " + droneId + "] Sent status: " + status);
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Sent status: " + status);
     }
 
     private void sendStatusWithPosition(DroneState state,
@@ -134,7 +138,8 @@ public class DroneSubsystem implements Runnable {
                 out, out.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
         );
         socket.send(packet);
-        System.out.println("[DRONE " + droneId + "] Sent status with pos ("
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Sent status with pos ("
                 + String.format("%.0f", posX) + "," + String.format("%.0f", posY) + "): " + status);
     }
 
@@ -147,7 +152,8 @@ public class DroneSubsystem implements Runnable {
                 out, out.length, InetAddress.getByName(SCHEDULER_HOST), SCHEDULER_PORT
         );
         socket.send(packet);
-        System.out.println("[DRONE " + droneId + "] Task completed and reported");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Task completed and reported");
     }
 
     private void sendFault(FaultType faultType, int zoneId, boolean recoverable) throws IOException {
@@ -160,14 +166,16 @@ public class DroneSubsystem implements Runnable {
         );
         socket.send(packet);
 
-        System.out.println("[DRONE " + droneId + "] Reported fault: " + fault);
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Reported fault: " + fault);
     }
 
     private void handleMessage(Message msg) throws InterruptedException, IOException {
         switch (msg.getType()) {
             case DRONE_TASK -> {
                 DroneCommand command = (DroneCommand) msg.getPayload();
-                System.out.println("[DRONE " + droneId + "] Received task: " + command);
+                if (common.DebugOutputFilter.isDroneOutputActive())
+                    System.out.println("[DRONE " + droneId + "] Received task: " + command);
 
                 if (counts != null) {
                     counts.incBusyDrones();
@@ -199,7 +207,8 @@ public class DroneSubsystem implements Runnable {
         long returnMs = computeTravelTimeMs(ZoneMap.distanceFromBase(currentZoneId));
         long dropMs = computeDropTimeMs(amountUsed);
 
-        System.out.println("[DRONE " + droneId + "] Dispatching to zone " + currentZoneId);
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Dispatching to zone " + currentZoneId);
 
         boolean reachedZone = travelToZone(currentZoneId, outboundMs, command);
         if (!reachedZone) {
@@ -209,10 +218,12 @@ public class DroneSubsystem implements Runnable {
         transition(DroneEvent.ARRIVED);
         int[] zoneCoords = ZoneMap.get(currentZoneId);
         sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
-        System.out.println("[DRONE " + droneId + "] Arrived at zone " + currentZoneId);
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Arrived at zone " + currentZoneId);
 
         if (command.getFaultType() == FaultType.NOZZLE_JAM) {
-            System.out.println("[DRONE " + droneId + "] Nozzle jam fault detected");
+            if (common.DebugOutputFilter.isDroneOutputActive())
+                System.out.println("[DRONE " + droneId + "] Nozzle jam fault detected");
             transition(DroneEvent.FAULT_DETECTED);
             sendFault(FaultType.NOZZLE_JAM, currentZoneId, false);
 
@@ -227,10 +238,12 @@ public class DroneSubsystem implements Runnable {
             return false;
         }
 
-        System.out.println("[DRONE " + droneId + "] Door opened");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Door opened");
         Thread.sleep((long) (TIME_TO_OPEN_DOOR / SIMULATION_SPEED));
 
-        System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
         long droppingSteps = Math.max(1, dropMs / 2000);
         for (int i = 0; i < droppingSteps; i++) {
             Thread.sleep(Math.max(1, (long) (((double) dropMs / droppingSteps) / SIMULATION_SPEED)));
@@ -241,7 +254,8 @@ public class DroneSubsystem implements Runnable {
         transition(DroneEvent.DROP_COMPLETE);
         sendStatus(state, currentZoneId, remainingAgent);
 
-        System.out.println("[DRONE " + droneId + "] Returning to base");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Returning to base");
         travelToBase(returnMs, state);
 
         transition(DroneEvent.RETURN_COMPLETE);
@@ -251,7 +265,8 @@ public class DroneSubsystem implements Runnable {
         batteryLevel = DEFAULT_BATTERY_CAPACITY;
         state = DroneState.IDLE;
         sendStatusWithPosition(state, null, remainingAgent, 0, 0);
-        System.out.println("[DRONE " + droneId + "] Arrived at base. Refilled to: Agent=" + remainingAgent + "L, Battery=" + batteryLevel + "%");
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] Arrived at base. Refilled to: Agent=" + remainingAgent + "L, Battery=" + batteryLevel + "%");
 
         return true;
     }
@@ -279,7 +294,8 @@ public class DroneSubsystem implements Runnable {
 
                 if (msg.getType() == MessageType.DRONE_TASK) {
                     DroneCommand redirect = (DroneCommand) msg.getPayload();
-                    System.out.println("[DRONE " + droneId + "] Redirected to zone " + redirect.get_zone_id());
+                    if (common.DebugOutputFilter.isDroneOutputActive())
+                        System.out.println("[DRONE " + droneId + "] Redirected to zone " + redirect.get_zone_id());
                     currentZoneId = redirect.get_zone_id();
                     return travelToZone(currentZoneId,
                             computeTravelTimeMs(ZoneMap.distanceFromBase(currentZoneId)),
@@ -300,7 +316,8 @@ public class DroneSubsystem implements Runnable {
                     && command.getFaultType() == FaultType.DRONE_STUCK
                     && elapsedMs >= faultDelayMs) {
 
-                System.out.println("[DRONE " + droneId + "] Drone stuck fault detected");
+                if (common.DebugOutputFilter.isDroneOutputActive())
+                    System.out.println("[DRONE " + droneId + "] Drone stuck fault detected");
                 transition(DroneEvent.FAULT_DETECTED);
                 sendStatusWithPosition(state, zoneId, remainingAgent, currX, currY);
                 sendFault(FaultType.DRONE_STUCK, zoneId, true);
@@ -367,7 +384,8 @@ public class DroneSubsystem implements Runnable {
     private void transition(DroneEvent event) {
         DroneState before = state;
         state = state.next(event);
-        System.out.println("[DRONE " + droneId + "] State: " + before + " -> " + state + " on " + event);
+        if (common.DebugOutputFilter.isDroneOutputActive())
+            System.out.println("[DRONE " + droneId + "] State: " + before + " -> " + state + " on " + event);
     }
 
     public static void main(String[] args) {

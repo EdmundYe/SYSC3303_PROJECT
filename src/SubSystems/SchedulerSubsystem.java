@@ -61,7 +61,7 @@ public class SchedulerSubsystem implements Runnable {
 
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
         try {
-            receiveSocket = new DatagramSocket(6000);
+            receiveSocket = new DatagramSocket(SCHEDULER_PORT);
             sendSocket = new DatagramSocket();
         } catch (SocketException e) {
             e.printStackTrace();
@@ -72,7 +72,7 @@ public class SchedulerSubsystem implements Runnable {
 
     public SchedulerSubsystem(MessageTransporter transport) {
         try {
-            receiveSocket = new DatagramSocket(6000);
+            receiveSocket = new DatagramSocket(SCHEDULER_PORT);
             sendSocket = new DatagramSocket();
         } catch (SocketException e) {
             e.printStackTrace();
@@ -81,7 +81,8 @@ public class SchedulerSubsystem implements Runnable {
     }
 
     public void run() {
-        System.out.println("[SCHEDULER] Scheduler started on port " + SCHEDULER_PORT);
+        if (common.DebugOutputFilter.isSchedulerOutputActive())
+            System.out.println("[SCHEDULER] Scheduler started on port " + SCHEDULER_PORT);
 
         while (true) {
             try {
@@ -116,7 +117,10 @@ public class SchedulerSubsystem implements Runnable {
             case DRONE_STATUS -> handleDroneStatus(msg, address, port);
             case DRONE_DONE -> handleDroneDone(msg, address, port);
             case DRONE_FAULT -> handleDroneFault(msg, address, port);
-            default -> System.out.println("[SCHEDULER] Ignored message: " + msg);
+            default -> {
+                if (common.DebugOutputFilter.isSchedulerOutputActive())
+                    System.out.println("[SCHEDULER] Ignored message: " + msg);
+            }
         }
     }
 
@@ -124,7 +128,8 @@ public class SchedulerSubsystem implements Runnable {
         FireEvent event = (FireEvent) msg.getPayload();
 
         if (isDuplicateIncident(event)) {
-            System.out.println("[SCHEDULER] Ignoring exact duplicate FIRE_EVENT: " + event);
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Ignoring exact duplicate FIRE_EVENT: " + event);
             sendAckToFireIncident(address, port);
             return;
         }
@@ -133,7 +138,8 @@ public class SchedulerSubsystem implements Runnable {
         metrics.recordFireDetected(event);
 
         sendToGUI(msg);
-        System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
+        if (common.DebugOutputFilter.isSchedulerOutputActive())
+            System.out.println("[SCHEDULER] Received FIRE_EVENT: " + event);
         transition(SchedulerEvent.FIRE_RECEIVED);
 
         sendAckToFireIncident(address, port);
@@ -148,7 +154,8 @@ public class SchedulerSubsystem implements Runnable {
 
     private void handleDronePoll(Message msg, InetAddress address, int port) {
         int droneId = (int) msg.getPayload();
-        System.out.println("[SCHEDULER] Drone polled: Drone " + droneId);
+        if (common.DebugOutputFilter.isSchedulerOutputActive())
+            System.out.println("[SCHEDULER] Drone polled: Drone " + droneId);
         transition(SchedulerEvent.DRONE_POLL);
 
         DroneInfo drone = getOrCreateDrone(droneId);
@@ -174,7 +181,8 @@ public class SchedulerSubsystem implements Runnable {
         metrics.recordDroneStatus(status);
 
         sendToGUI(msg);
-        System.out.println("[SCHEDULER] Drone status update: " + status);
+        if (common.DebugOutputFilter.isSchedulerOutputActive())
+            System.out.println("[SCHEDULER] Drone status update: " + status);
         transition(SchedulerEvent.DRONE_STATUS_RECEIVED);
 
         refreshSchedulerState();
@@ -185,7 +193,8 @@ public class SchedulerSubsystem implements Runnable {
         int droneId = msg.get_source_id();
 
         sendToGUI(msg);
-        System.out.println("[SCHEDULER] Drone completed task: " + status);
+        if (common.DebugOutputFilter.isSchedulerOutputActive())
+            System.out.println("[SCHEDULER] Drone completed task: " + status);
         transition(SchedulerEvent.DRONE_DONE_RECEIVED);
 
         DroneInfo drone = getOrCreateDrone(droneId);
@@ -223,7 +232,8 @@ public class SchedulerSubsystem implements Runnable {
         int droneId = msg.get_source_id();
 
         sendToGUI(msg);
-        System.out.println("[SCHEDULER] Drone fault reported: " + fault);
+        if (common.DebugOutputFilter.isSchedulerOutputActive())
+            System.out.println("[SCHEDULER] Drone fault reported: " + fault);
         metrics.recordDroneFault(droneId);
 
         DroneInfo drone = getOrCreateDrone(droneId);
@@ -253,7 +263,8 @@ public class SchedulerSubsystem implements Runnable {
                     0
             );
             pendingEvents.add(retryEvent);
-            System.out.println("[SCHEDULER] Requeued clean event for zone " + failedEvent.getZoneId());
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Requeued clean event for zone " + failedEvent.getZoneId());
         }
 
         drone.assignedEvent = null;
@@ -263,12 +274,14 @@ public class SchedulerSubsystem implements Runnable {
 
         if (fault.getFaultType() == FaultType.NOZZLE_JAM) {
             drone.markOffline();
-            System.out.println("[SCHEDULER] Drone " + droneId + " marked OFFLINE");
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Drone " + droneId + " marked OFFLINE");
         } else {
             drone.available = false;
             drone.busy = true;
             drone.lastKnownState = DroneState.FAULTED;
-            System.out.println("[SCHEDULER] Drone " + droneId + " marked temporarily FAULTED");
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Drone " + droneId + " marked temporarily FAULTED");
         }
 
         reconcileZoneState();
@@ -283,7 +296,8 @@ public class SchedulerSubsystem implements Runnable {
             drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
             drone.batteryLevel = 100;
             drones.put(droneId, drone);
-            System.out.println("[SCHEDULER] Registered Drone " + droneId);
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Registered Drone " + droneId);
         }
         return drone;
     }
@@ -424,7 +438,8 @@ public class SchedulerSubsystem implements Runnable {
             throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
         }
 
-        System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
+        if (common.DebugOutputFilter.isSchedulerOutputActive())
+            System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
                 + " to zone " + event.getZoneId()
                 + " (" + event.getSeverity()
                 + ", fault=" + event.getFaultType() + ")");
@@ -471,7 +486,8 @@ public class SchedulerSubsystem implements Runnable {
                 throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
             }
 
-            System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Dispatched Drone " + drone.droneId
                     + " to zone " + event.getZoneId()
                     + " (" + event.getSeverity()
                     + ", fault=" + event.getFaultType() + ")");
@@ -542,7 +558,8 @@ public class SchedulerSubsystem implements Runnable {
 
         try {
             sendSocket.send(ackPacket);
-            System.out.println("[SCHEDULER] Sent FIRE_EVENT ACK");
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Sent FIRE_EVENT ACK");
         } catch (IOException e) {
             throw new RuntimeException("Failed to send fire ACK", e);
         }
@@ -561,7 +578,8 @@ public class SchedulerSubsystem implements Runnable {
             );
             sendSocket.send(packet);
             sendToGUI(out);
-            System.out.println("[SCHEDULER] Sent FIRE_OUT for zone " + event.getZoneId());
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Sent FIRE_OUT for zone " + event.getZoneId());
         } catch (IOException e) {
             throw new RuntimeException("Failed to send FIRE_OUT", e);
         }
@@ -612,7 +630,8 @@ public class SchedulerSubsystem implements Runnable {
         }
 
         if (oldState != schedulerState) {
-            System.out.println("[SCHEDULER] State: " + oldState + " -> " + schedulerState);
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] State: " + oldState + " -> " + schedulerState);
         }
     }
 
@@ -621,9 +640,11 @@ public class SchedulerSubsystem implements Runnable {
         schedulerState = schedulerState.next(event);
 
         if (before != schedulerState) {
-            System.out.println("[SCHEDULER] Transition: " + before + " -> " + schedulerState + " on " + event);
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Transition: " + before + " -> " + schedulerState + " on " + event);
         } else {
-            System.out.println("[SCHEDULER] Event: " + event);
+            if (common.DebugOutputFilter.isSchedulerOutputActive())
+                System.out.println("[SCHEDULER] Event: " + event);
         }
     }
 

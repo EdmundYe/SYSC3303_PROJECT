@@ -10,6 +10,12 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * GUI for the drone firefighting system.
+ * Layout updated to place existing ZoneCanvas instances into a single map panel
+ * positioned according to zone world bounds. All ZoneCanvas internals and animations
+ * are preserved; this change is purely layout/visual.
+ */
 public class GUI extends JFrame {
 
     private final JLabel firesLabel = new JLabel("Active fires: 0");
@@ -41,18 +47,81 @@ public class GUI extends JFrame {
         top.add(firesLabel);
         top.add(dronesLabel);
 
-        Map<Integer, int[]> allZones = ZoneMap.getAllZones();
-        int zoneCount = allZones.size();
-        int cols = (int) Math.ceil(Math.sqrt(zoneCount));
-        int rows = (int) Math.ceil((double) zoneCount / cols);
+        Map<Integer, int[]> allZoneBounds = ZoneMap.getAllZoneBounds();
 
-        JPanel grid = new JPanel(new GridLayout(rows, cols, 10, 10));
+        int mapPixelW = 900;
+        int mapPixelH = 900;
 
-        for (Map.Entry<Integer, int[]> entry : allZones.entrySet()) {
-            int zoneId = entry.getKey();
-            int[] coords = entry.getValue();
-            grid.add(makeZoneCell("Z(" + zoneId + ") [" + coords[0] + "," + coords[1] + "]", zoneId));
+        double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+        for (int[] b : allZoneBounds.values()) {
+            if (b == null || b.length < 4) continue;
+            minX = Math.min(minX, b[0]);
+            minY = Math.min(minY, b[1]);
+            maxX = Math.max(maxX, b[2]);
+            maxY = Math.max(maxY, b[3]);
         }
+        if (minX == Double.POSITIVE_INFINITY) { minX = 0; minY = 0; maxX = 2500; maxY = 2500; }
+
+        JLayeredPane mapPanel = new JLayeredPane();
+        mapPanel.setPreferredSize(new Dimension(mapPixelW, mapPixelH));
+        mapPanel.setLayout(null);
+
+        double worldW = Math.max(1.0, maxX - minX);
+        double worldH = Math.max(1.0, maxY - minY);
+
+        int pad = 8;
+        double availW = mapPixelW - 2 * pad;
+        double availH = mapPixelH - 2 * pad;
+
+        for (Map.Entry<Integer, int[]> entry : allZoneBounds.entrySet()) {
+            int zoneId = entry.getKey();
+            int[] b = entry.getValue();
+            if (b == null || b.length < 4) continue;
+
+            double nx1 = (b[0] - minX) / worldW;
+            double ny1 = (b[1] - minY) / worldH;
+            double nx2 = (b[2] - minX) / worldW;
+            double ny2 = (b[3] - minY) / worldH;
+
+            int px1 = pad + (int) Math.round(nx1 * availW);
+            int py1 = pad + (int) Math.round(ny1 * availH);
+            int px2 = pad + (int) Math.round(nx2 * availW);
+            int py2 = pad + (int) Math.round(ny2 * availH);
+
+            int pw = Math.max(60, Math.abs(px2 - px1));
+            int ph = Math.max(60, Math.abs(py2 - py1));
+            int px = Math.min(px1, px2);
+            int py = Math.min(py1, py2);
+
+            JPanel wrapper = new JPanel(new BorderLayout());
+            wrapper.setBackground(Color.WHITE);
+            wrapper.setBorder(BorderFactory.createLineBorder(new Color(150, 110, 200), 2));
+            wrapper.setOpaque(true);
+            wrapper.setBounds(px, py, pw, ph);
+
+            JLabel title = new JLabel("Z(" + zoneId + ")", SwingConstants.LEFT);
+            title.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+            title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+            wrapper.add(title, BorderLayout.NORTH);
+
+            ZoneCanvas canvas = new ZoneCanvas(zoneId, new int[]{b[0], b[1], b[2], b[3]});
+            wrapper.add(canvas, BorderLayout.CENTER);
+
+            JLabel info = new JLabel("", SwingConstants.CENTER);
+            info.setOpaque(false);
+            info.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+            wrapper.add(info, BorderLayout.SOUTH);
+
+            mapPanel.add(wrapper, Integer.valueOf(0));
+
+            zonePanels.put(zoneId, wrapper);
+            zoneInfoLabels.put(zoneId, info);
+            zoneCanvases.put(zoneId, canvas);
+        }
+
+        JPanel centerWrapper = new JPanel(new BorderLayout());
+        centerWrapper.add(mapPanel, BorderLayout.CENTER);
 
         dronePanel.setLayout(new BoxLayout(dronePanel, BoxLayout.Y_AXIS));
 
@@ -122,7 +191,7 @@ public class GUI extends JFrame {
         sidebar.add(droneScrollPane);
 
         root.add(top, BorderLayout.NORTH);
-        root.add(grid, BorderLayout.CENTER);
+        root.add(centerWrapper, BorderLayout.CENTER);
         root.add(sidebar, BorderLayout.EAST);
 
         setContentPane(root);
@@ -139,6 +208,23 @@ public class GUI extends JFrame {
             }
         });
         animationTimer.start();
+        final JLayeredPane mapPanelFinal = mapPanel;
+        final Map<Integer,int[]> allZoneBoundsFinal = new LinkedHashMap<>(allZoneBounds);
+        final double minXFinal = minX;
+        final double minYFinal = minY;
+        final double maxXFinal = maxX;
+        final double maxYFinal = maxY;
+        final int padFinal = pad;
+
+        repositionZoneWrappers(mapPanelFinal, allZoneBoundsFinal, minXFinal, minYFinal, maxXFinal, maxYFinal, padFinal);
+
+        mapPanelFinal.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                repositionZoneWrappers(mapPanelFinal, allZoneBoundsFinal, minXFinal, minYFinal, maxXFinal, maxYFinal, padFinal);
+            }
+        });
+
     }
 
     private JLabel boldLabel(String text) {
@@ -148,7 +234,8 @@ public class GUI extends JFrame {
         return label;
     }
 
-    private JPanel makeZoneCell(String label, int zoneId) {
+    private JPanel makeZoneCell(String label, int zoneId, int[] bounds) {
+        // kept for compatibility but not used in the new layout
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(Color.WHITE);
         p.setBorder(BorderFactory.createLineBorder(new Color(150, 110, 200), 2));
@@ -162,7 +249,7 @@ public class GUI extends JFrame {
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setOpaque(false);
 
-        ZoneCanvas canvas = new ZoneCanvas(zoneId);
+        ZoneCanvas canvas = new ZoneCanvas(zoneId, bounds);
         zoneCanvases.put(zoneId, canvas);
         centerPanel.add(canvas, BorderLayout.CENTER);
 
@@ -177,6 +264,48 @@ public class GUI extends JFrame {
         zonePanels.put(zoneId, p);
         return p;
     }
+
+    private void repositionZoneWrappers(JLayeredPane mapPanel, Map<Integer,int[]> allZoneBounds,
+                                        double minX, double minY, double maxX, double maxY, int pad) {
+        int mapPixelW = Math.max(100, mapPanel.getWidth());
+        int mapPixelH = Math.max(100, mapPanel.getHeight());
+
+        double worldW = Math.max(1.0, maxX - minX);
+        double worldH = Math.max(1.0, maxY - minY);
+
+        double availW = Math.max(10, mapPixelW - 2.0 * pad);
+        double availH = Math.max(10, mapPixelH - 2.0 * pad);
+
+        for (Map.Entry<Integer, int[]> entry : allZoneBounds.entrySet()) {
+            int zoneId = entry.getKey();
+            int[] b = entry.getValue();
+            if (b == null || b.length < 4) continue;
+
+            double nx1 = (b[0] - minX) / worldW;
+            double ny1 = (b[1] - minY) / worldH;
+            double nx2 = (b[2] - minX) / worldW;
+            double ny2 = (b[3] - minY) / worldH;
+
+            int px1 = pad + (int) Math.round(nx1 * availW);
+            int py1 = pad + (int) Math.round(ny1 * availH);
+            int px2 = pad + (int) Math.round(nx2 * availW);
+            int py2 = pad + (int) Math.round(ny2 * availH);
+
+            int pw = Math.max(40, Math.abs(px2 - px1));
+            int ph = Math.max(40, Math.abs(py2 - py1));
+            int px = Math.min(px1, px2);
+            int py = Math.min(py1, py2);
+
+            JPanel wrapper = zonePanels.get(zoneId);
+            if (wrapper != null) {
+                wrapper.setBounds(px, py, pw, ph);
+                wrapper.revalidate();
+                wrapper.repaint();
+            }
+        }
+    }
+
+
 
     public void handleIncomingMessage(Message msg) {
         switch (msg.getType()) {
@@ -208,7 +337,8 @@ public class GUI extends JFrame {
             }
             case DRONE_FAULT -> {
                 DroneFault fault = (DroneFault) msg.getPayload();
-                System.out.println("[GUI] DRONE_FAULT: " + fault);
+                if (common.DebugOutputFilter.isGUIOutputActive())
+                    System.out.println("[GUI] DRONE_FAULT: " + fault);
                 showDronesInZones();
             }
         }
@@ -372,16 +502,54 @@ public class GUI extends JFrame {
     }
 
     // Inner class: ZoneCanvas
-    // Lightweight component that draws small circles for drones in the zone and animates arrivals and departures.
+    // Draws zone rectangle (start/end) and animates drones relative to the zone center.
     private static class ZoneCanvas extends JComponent {
         // per-drone animation state keyed by drone id
         private final Map<Integer, DroneAnim> anims = new ConcurrentHashMap<>();
         // animation parameters
         private final double baseRadius = 18.0;
 
-        ZoneCanvas(int zoneId) {
+        // world bounds for this zone: [x1,y1,x2,y2]
+        private final int worldX1, worldY1, worldX2, worldY2;
+
+        ZoneCanvas(int zoneId, int[] bounds) {
+            // bounds expected as [x1,y1,x2,y2]
+            if (bounds != null && bounds.length == 4) {
+                this.worldX1 = bounds[0];
+                this.worldY1 = bounds[1];
+                this.worldX2 = bounds[2];
+                this.worldY2 = bounds[3];
+            } else {
+                this.worldX1 = 0;
+                this.worldY1 = 0;
+                this.worldX2 = 0;
+                this.worldY2 = 0;
+            }
             setPreferredSize(new Dimension(200, 120));
             setOpaque(false);
+        }
+
+        // Map a world coordinate (wx,wy) into canvas coordinates with padding
+        private Point2D.Double worldToCanvas(double wx, double wy, int w, int h) {
+            // Add small padding inside canvas
+            double pad = 8.0;
+            double availW = Math.max(10, w - 2 * pad);
+            double availH = Math.max(10, h - 2 * pad);
+
+            double wx1 = worldX1;
+            double wy1 = worldY1;
+            double wx2 = worldX2;
+            double wy2 = worldY2;
+
+            double worldW = Math.max(1.0, wx2 - wx1);
+            double worldH = Math.max(1.0, wy2 - wy1);
+
+            double nx = (wx - wx1) / worldW; // 0..1
+            double ny = (wy - wy1) / worldH; // 0..1
+
+            double cx = pad + nx * availW;
+            double cy = pad + ny * availH;
+            return new Point2D.Double(cx, cy);
         }
 
         // Always show all drones passed in. New drones ARRIVE from edge. Missing drones LEAVE outward.
@@ -416,7 +584,7 @@ public class GUI extends JFrame {
                     DroneAnim a = anims.get(id);
                     if (a != null && a.state != DronePhase.LEAVING) {
                         a.state = DronePhase.LEAVING;
-                        // compute outward direction from center
+                        // compute outward direction from zone center in canvas coords
                         a.computeLeaveVector(getWidth(), getHeight());
                     }
                 }
@@ -427,15 +595,20 @@ public class GUI extends JFrame {
         void tick() {
             int w = getWidth();
             int h = getHeight();
-            double cx = w / 2.0;
-            double cy = h / 2.0;
+
+            // compute zone center in canvas coords
+            double centerWorldX = (worldX1 + worldX2) / 2.0;
+            double centerWorldY = (worldY1 + worldY2) / 2.0;
+            Point2D.Double centerCanvas = worldToCanvas(centerWorldX, centerWorldY, w, h);
+            double cx = centerCanvas.x;
+            double cy = centerCanvas.y;
 
             for (Iterator<Map.Entry<Integer, DroneAnim>> it = anims.entrySet().iterator(); it.hasNext(); ) {
                 Map.Entry<Integer, DroneAnim> en = it.next();
                 DroneAnim a = en.getValue();
                 switch (a.state) {
                     case ARRIVING -> {
-                        // move toward center
+                        // move toward zone center
                         double dx = cx - a.x;
                         double dy = cy - a.y;
                         double dist = Math.hypot(dx, dy);
@@ -483,14 +656,31 @@ public class GUI extends JFrame {
             try {
                 int w = getWidth();
                 int h = getHeight();
+
                 // subtle background
                 g2.setColor(new Color(245, 245, 245));
                 g2.fillRect(0, 0, w, h);
 
-                double cx = w / 2.0;
-                double cy = h / 2.0;
+                // draw zone rectangle mapped from world bounds
+                // compute canvas coords for corners
+                Point2D.Double c1 = worldToCanvas(worldX1, worldY1, w, h);
+                Point2D.Double c2 = worldToCanvas(worldX2, worldY2, w, h);
 
-                // draw each anim
+                double rx = Math.min(c1.x, c2.x);
+                double ry = Math.min(c1.y, c2.y);
+                double rw = Math.abs(c2.x - c1.x);
+                double rh = Math.abs(c2.y - c1.y);
+
+                // filled subtle zone area
+                g2.setColor(new Color(230, 240, 255, 60));
+                g2.fillRect((int) rx, (int) ry, (int) Math.max(1, rw), (int) Math.max(1, rh));
+
+                // rectangle border
+                g2.setColor(new Color(100, 140, 200));
+                g2.setStroke(new BasicStroke(2f));
+                g2.drawRect((int) rx, (int) ry, (int) Math.max(1, rw), (int) Math.max(1, rh));
+
+                // draw each anim (drones)
                 for (DroneAnim a : anims.values()) {
                     int id = a.status.get_drone_id();
                     double x = a.x;
@@ -519,7 +709,7 @@ public class GUI extends JFrame {
 
                     // id label
                     g2.setColor(Color.BLACK);
-                    g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+                    g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
                     g2.drawString("D" + id, (int) (x + 9), (int) (y + 4));
                 }
             } finally {

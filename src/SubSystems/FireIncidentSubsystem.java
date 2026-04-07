@@ -64,7 +64,8 @@ public class FireIncidentSubsystem implements Runnable {
             throw new RuntimeException(e);
         }
 
-        System.out.println("[FIRE] Fire Incident Subsystem started");
+        if (common.DebugOutputFilter.isFireIncidentOutputActive())
+            System.out.println("[FIRE] Fire Incident Subsystem started");
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
             String line;
@@ -83,13 +84,15 @@ public class FireIncidentSubsystem implements Runnable {
                 try {
                     event = parseCSVLine(line);
                 } catch (Exception e) {
-                    System.err.println("[FIRE] Error parsing line " + lineNumber + ": " + e.getMessage());
+                    if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                        System.err.println("[FIRE] Error parsing line " + lineNumber + ": " + e.getMessage());
                     continue;  // Skip this line and continue
                 }
 
                 // Skip header row (parseCSVLine returns null for headers)
                 if (event == null) {
-                    System.out.println("[FIRE] Skipping header row");
+                    if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                        System.out.println("[FIRE] Skipping header row");
                     continue;
                 }
                 long currentEventMs = event.getTimestamp().toEpochMilli();
@@ -105,7 +108,8 @@ public class FireIncidentSubsystem implements Runnable {
                 }
                 previousEventMs = currentEventMs;
 
-                System.out.println("[FIRE] Read event: " + event);
+                if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                    System.out.println("[FIRE] Read event: " + event);
 
                 Message msg = Message.fireEvent(event);
                 byte[] data = msg.toBytes();
@@ -115,13 +119,15 @@ public class FireIncidentSubsystem implements Runnable {
                 );
                 socket.send(packet);
 
-                System.out.println("[FIRE] Sent FIRE_EVENT to Scheduler");
+                if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                    System.out.println("[FIRE] Sent FIRE_EVENT to Scheduler");
                 outstandingFires++;
 
                 waitForAck();
             }
 
-            System.out.println("[FIRE] No more input events. Waiting for " + outstandingFires + " FIRE_OUT messages...");
+            if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                System.out.println("[FIRE] No more input events. Waiting for " + outstandingFires + " FIRE_OUT messages...");
 
             while (outstandingFires > 0) {
                 waitForFireOut();
@@ -131,7 +137,8 @@ public class FireIncidentSubsystem implements Runnable {
             e.printStackTrace();
         }
 
-        System.out.println("[FIRE] No more events. Subsystem finished.");
+        if (common.DebugOutputFilter.isFireIncidentOutputActive())
+            System.out.println("[FIRE] No more events. Subsystem finished.");
     }
 
     private void waitForAck() throws Exception {
@@ -149,7 +156,8 @@ public class FireIncidentSubsystem implements Runnable {
                     java.util.Arrays.copyOf(packet.getData(), packet.getLength())
             );
 
-            System.out.println("[FIRE] Received response: " + response);
+            if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                System.out.println("[FIRE] Received response: " + response);
 
             if (response.getType() == MessageType.FIRE_EVENT) {
                 return;
@@ -158,7 +166,8 @@ public class FireIncidentSubsystem implements Runnable {
             if (response.getType() == MessageType.FIRE_OUT) {
                 outstandingFires--;
                 FireEvent event = (FireEvent) response.getPayload();
-                System.out.println("[FIRE] FIRE_OUT received while waiting for ACK: zone " + event.getZoneId());
+                if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                    System.out.println("[FIRE] FIRE_OUT received while waiting for ACK: zone " + event.getZoneId());
             }
         }
     }
@@ -180,10 +189,12 @@ public class FireIncidentSubsystem implements Runnable {
         if (response.getType() == MessageType.FIRE_OUT) {
             FireEvent event = (FireEvent) response.getPayload();
             outstandingFires--;
-            System.out.println("[FIRE] FIRE_OUT received for zone " + event.getZoneId() +
+            if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                System.out.println("[FIRE] FIRE_OUT received for zone " + event.getZoneId() +
                     ". Outstanding fires: " + outstandingFires);
         } else {
-            System.out.println("[FIRE] Ignored response: " + response);
+            if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                System.out.println("[FIRE] Ignored response: " + response);
         }
     }
 
@@ -247,7 +258,8 @@ public class FireIncidentSubsystem implements Runnable {
                     try {
                         faultType = FaultType.valueOf(faultTypeStr);
                     } catch (IllegalArgumentException e) {
-                        System.err.println("[FIRE] Warning: Unknown fault type '" + parts[4].trim() +
+                        if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                            System.err.println("[FIRE] Warning: Unknown fault type '" + parts[4].trim() +
                                 "', defaulting to NONE");
                         faultType = FaultType.NONE;
                     }
@@ -280,7 +292,8 @@ public class FireIncidentSubsystem implements Runnable {
                         .atZone(java.time.ZoneId.systemDefault())
                         .toInstant();
             } catch (Exception timeParseEx) {
-                System.err.println("[FIRE] Warning: Could not parse time '" + timeStr +
+                if (common.DebugOutputFilter.isFireIncidentOutputActive())
+                    System.err.println("[FIRE] Warning: Could not parse time '" + timeStr +
                         "', using current time");
                 // Use Instant.now() as fallback
             }
