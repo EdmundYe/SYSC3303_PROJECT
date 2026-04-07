@@ -179,7 +179,6 @@ public class GUI extends JFrame {
     }
 
     public void handleIncomingMessage(Message msg) {
-        System.out.println("[GUI] RECEIVED MESSAGE");
         switch (msg.getType()) {
             case DRONE_STATUS, DRONE_DONE -> {
                 DroneStatus st = (DroneStatus) msg.getPayload();
