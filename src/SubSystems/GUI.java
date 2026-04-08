@@ -511,6 +511,9 @@ public class GUI extends JFrame {
         private final double maxX;
         private final double maxY;
 
+        private static final double CLUSTER_DISTANCE_PX = 18.0; // how close before we separate visually
+        private static final double SPREAD_RADIUS_PX = 14.0;    // how far apart clustered drones appear
+
         GlobalDroneCanvas(double minX, double minY, double maxX, double maxY) {
             this.minX = minX;
             this.minY = minY;
@@ -543,6 +546,86 @@ public class GUI extends JFrame {
             return new Point2D.Double(cx, cy);
         }
 
+        private static class DrawInfo {
+            final DroneStatus status;
+            final Point2D.Double basePoint;
+            Point2D.Double drawPoint;
+
+            DrawInfo(DroneStatus status, Point2D.Double basePoint) {
+                this.status = status;
+                this.basePoint = basePoint;
+                this.drawPoint = basePoint;
+            }
+        }
+
+        private List<List<DrawInfo>> clusterCloseDrones(List<DrawInfo> points) {
+            List<List<DrawInfo>> clusters = new ArrayList<>();
+            boolean[] used = new boolean[points.size()];
+
+            for (int i = 0; i < points.size(); i++) {
+                if (used[i]) continue;
+
+                List<DrawInfo> cluster = new ArrayList<>();
+                cluster.add(points.get(i));
+                used[i] = true;
+
+                boolean changed = true;
+                while (changed) {
+                    changed = false;
+                    for (int j = 0; j < points.size(); j++) {
+                        if (used[j]) continue;
+
+                        for (DrawInfo existing : cluster) {
+                            double dx = points.get(j).basePoint.x - existing.basePoint.x;
+                            double dy = points.get(j).basePoint.y - existing.basePoint.y;
+                            double dist = Math.hypot(dx, dy);
+
+                            if (dist <= CLUSTER_DISTANCE_PX) {
+                                cluster.add(points.get(j));
+                                used[j] = true;
+                                changed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                clusters.add(cluster);
+            }
+
+            return clusters;
+        }
+
+        private void applyVisualOffsets(List<DrawInfo> infos) {
+            List<List<DrawInfo>> clusters = clusterCloseDrones(infos);
+
+            for (List<DrawInfo> cluster : clusters) {
+                if (cluster.size() == 1) {
+                    cluster.get(0).drawPoint = cluster.get(0).basePoint;
+                    continue;
+                }
+
+                cluster.sort(Comparator.comparingInt(a -> a.status.get_drone_id()));
+
+                double centerX = 0;
+                double centerY = 0;
+                for (DrawInfo info : cluster) {
+                    centerX += info.basePoint.x;
+                    centerY += info.basePoint.y;
+                }
+                centerX /= cluster.size();
+                centerY /= cluster.size();
+
+                for (int i = 0; i < cluster.size(); i++) {
+                    double angle = (2 * Math.PI * i) / cluster.size();
+                    double ox = Math.cos(angle) * SPREAD_RADIUS_PX;
+                    double oy = Math.sin(angle) * SPREAD_RADIUS_PX;
+
+                    cluster.get(i).drawPoint = new Point2D.Double(centerX + ox, centerY + oy);
+                }
+            }
+        }
+
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -560,10 +643,17 @@ public class GUI extends JFrame {
                 g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
                 g2.drawString("Base (0,0)", (int) base.x + 10, (int) base.y - 8);
 
+                List<DrawInfo> drawInfos = new ArrayList<>();
                 for (DroneStatus st : drones.values()) {
-                    double wx = st.getPosX();
-                    double wy = st.getPosY();
-                    Point2D.Double p = worldToCanvas(wx, wy, w, h);
+                    Point2D.Double p = worldToCanvas(st.getPosX(), st.getPosY(), w, h);
+                    drawInfos.add(new DrawInfo(st, p));
+                }
+
+                applyVisualOffsets(drawInfos);
+
+                for (DrawInfo info : drawInfos) {
+                    DroneStatus st = info.status;
+                    Point2D.Double p = info.drawPoint;
 
                     Color c = switch (st.getState()) {
                         case IDLE -> Color.GRAY;
@@ -574,6 +664,15 @@ public class GUI extends JFrame {
                         case OFFLINE -> Color.DARK_GRAY;
                         default -> Color.BLACK;
                     };
+
+                    // Optional: draw a faint line from true position to offset position
+                    if (Math.hypot(info.drawPoint.x - info.basePoint.x, info.drawPoint.y - info.basePoint.y) > 1.0) {
+                        g2.setColor(new Color(0, 0, 0, 60));
+                        g2.drawLine(
+                                (int) info.basePoint.x, (int) info.basePoint.y,
+                                (int) info.drawPoint.x, (int) info.drawPoint.y
+                        );
+                    }
 
                     if (st.getState() != DroneState.IDLE && st.getState() != DroneState.DONE) {
                         g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 80));

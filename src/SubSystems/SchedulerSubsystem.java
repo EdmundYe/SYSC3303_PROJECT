@@ -4,9 +4,9 @@ import MessageTransport.MessageTransporter;
 import common.*;
 
 import javax.swing.*;
-import java.util.*;
 import java.net.*;
 import java.io.*;
+import java.util.*;
 
 public class SchedulerSubsystem implements Runnable {
 
@@ -45,15 +45,34 @@ public class SchedulerSubsystem implements Runnable {
             throw new RuntimeException("Failed to create scheduler sockets", e);
         }
         this.counts = counts;
+        if (counts != null) {
+            metrics.registerDroneRange(counts.getTotalDrones());
+        }
 
         try {
             SwingUtilities.invokeAndWait(() -> {
                 this.gui = new GUI(counts);
+                this.gui.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+                this.gui.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosing(java.awt.event.WindowEvent e) {
+                        try {
+                            System.out.println("[SCHEDULER] GUI closing, writing metrics report...");
+                            metrics.printFinalReport();
+                        } catch (Exception ex) {
+                            System.err.println("[SCHEDULER] Failed to write metrics report on GUI close: " + ex.getMessage());
+                        } finally {
+                            gui.dispose();
+                            System.exit(0);
+                        }
+                    }
+                });
                 this.gui.setVisible(true);
             });
         } catch (Exception e) {
             throw new RuntimeException("Failed to start GUI", e);
         }
+
     }
 
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
@@ -61,7 +80,7 @@ public class SchedulerSubsystem implements Runnable {
             receiveSocket = new DatagramSocket(SCHEDULER_PORT);
             sendSocket = new DatagramSocket();
         } catch (SocketException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         this.counts = counts;
         this.transport = transport;
@@ -72,11 +91,12 @@ public class SchedulerSubsystem implements Runnable {
             receiveSocket = new DatagramSocket(SCHEDULER_PORT);
             sendSocket = new DatagramSocket();
         } catch (SocketException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         this.transport = transport;
     }
 
+    @Override
     public void run() {
         if (common.DebugOutputFilter.isSchedulerOutputActive())
             System.out.println("[SCHEDULER] Scheduler started on port " + SCHEDULER_PORT);
@@ -151,6 +171,7 @@ public class SchedulerSubsystem implements Runnable {
 
     private void handleDronePoll(Message msg, InetAddress address, int port) {
         int droneId = (int) msg.getPayload();
+        metrics.registerDrone(droneId);
         if (common.DebugOutputFilter.isSchedulerOutputActive())
             System.out.println("[SCHEDULER] Drone polled: Drone " + droneId);
         transition(SchedulerEvent.DRONE_POLL);
@@ -221,7 +242,6 @@ public class SchedulerSubsystem implements Runnable {
         reconcileZoneState();
         tryDispatchIfPossible();
         refreshSchedulerState();
-        maybePrintMetricsReport();
     }
 
     private void handleDroneFault(Message msg, InetAddress address, int port) {
@@ -261,7 +281,6 @@ public class SchedulerSubsystem implements Runnable {
             );
             pendingEvents.add(retryEvent);
 
-            // GUI resync: mark this zone active again immediately
             sendToGUI(Message.fireEvent(retryEvent));
 
             if (common.DebugOutputFilter.isSchedulerOutputActive())
@@ -297,6 +316,7 @@ public class SchedulerSubsystem implements Runnable {
             drone.remainingAgent = DEFAULT_DRONE_AGENT_CAPACITY;
             drone.batteryLevel = 100;
             drones.put(droneId, drone);
+            metrics.registerDrone(droneId);
             if (common.DebugOutputFilter.isSchedulerOutputActive())
                 System.out.println("[SCHEDULER] Registered Drone " + droneId);
         }
@@ -314,8 +334,6 @@ public class SchedulerSubsystem implements Runnable {
 
         while (!pendingEvents.isEmpty()) {
             boolean dispatched = false;
-            List<FireEvent> sorted = new ArrayList<>(pendingEvents);
-            sorted.sort(Comparator.comparing(FireEvent::getTimestamp));
 
             for (FireEvent event : new ArrayList<>(pendingEvents)) {
                 if (isZoneActive(event.getZoneId())) {
@@ -324,7 +342,7 @@ public class SchedulerSubsystem implements Runnable {
 
                 String severity = event.getSeverity().toString().toLowerCase();
                 int dronesNeeded = SEVERITY_DRONE_COUNT.getOrDefault(severity, 1);
-                // Check redirect opportunity first — busy drone passing through
+
                 DroneInfo redirectCandidate = findPassThroughDrone(event);
                 if (redirectCandidate != null) {
                     pendingEvents.remove(event);
@@ -387,7 +405,6 @@ public class SchedulerSubsystem implements Runnable {
             boolean passesThrough = ZoneMap.isOnPath(drone.destinationZone, requestedZone, 150);
             if (!passesThrough) continue;
 
-            // Include mission penalty so overworked drones aren't always chosen
             double score = drone.estimateSecondsToZone(requestedZone) + drone.missionsCompleted * 10.0;
             if (score < bestScore) {
                 bestScore = score;
@@ -396,7 +413,7 @@ public class SchedulerSubsystem implements Runnable {
         }
         return best;
     }
-    // Only looks at idle/dispatchable drones
+
     private DroneInfo findBestIdleDroneForEvent(FireEvent event, Set<Integer> excludedIds, int dronesNeeded) {
         int requestedZone = event.getZoneId();
         int requiredAgent = (int) Math.ceil(
@@ -419,18 +436,14 @@ public class SchedulerSubsystem implements Runnable {
         return best;
     }
 
-    // Sends redirect to a drone already in flight — preserves old assignment tracking
     private void redirect(DroneInfo drone, FireEvent newEvent) {
-        // Keep old event tracked until drone confirms done/fault on new one
         FireEvent oldEvent = drone.assignedEvent;
 
-        // Remove old zone count but don't release zone yet — drone hasn't reported done
         int oldZone = oldEvent.getZoneId();
         int oldRemaining = zoneActiveDroneCount.getOrDefault(oldZone, 1) - 1;
         if (oldRemaining <= 0) {
             zoneActiveDroneCount.remove(oldZone);
             activeZones.remove(oldZone);
-            // Requeue old event since it won't be serviced
             if (!isZonePending(oldZone) && !isZoneActive(oldZone)) {
                 pendingEvents.add(oldEvent);
                 System.out.println("[SCHEDULER] Requeued old event for zone " + oldZone
@@ -474,51 +487,6 @@ public class SchedulerSubsystem implements Runnable {
                 + " from zone " + oldZone + " -> zone " + newEvent.getZoneId());
     }
 
-    private DroneInfo findBestDroneForNextEvent(FireEvent event, Set<Integer> excludedIds, int dronesNeeded) {
-        int requestedZone = event.getZoneId();
-        int requiredAgent = (int) Math.ceil((double) event.getSeverity().requiredAgentLitres() / dronesNeeded);
-
-        DroneInfo best = null;
-        double bestScore = Double.MAX_VALUE;
-
-        for (DroneInfo drone : drones.values()) {
-            if (excludedIds.contains(drone.droneId)) continue;
-
-            if (drone.remainingAgent != null && drone.remainingAgent < requiredAgent) {
-                continue;
-            }
-
-            if (drone.isDispatchable()) {
-                double timeToZone = drone.estimateSecondsToZone(requestedZone);
-                double score = timeToZone + drone.missionsCompleted * 10.0;
-                if (score < bestScore) {
-                    bestScore = score;
-                    best = drone;
-                }
-            }
-
-            if (drone.busy
-                    && drone.destinationZone != -1
-                    && drone.assignedEvent != null
-                    && drone.lastKnownState != DroneState.OFFLINE
-                    && drone.lastKnownState != DroneState.FAULTED) {
-
-                boolean passesThrough = ZoneMap.isOnPath(drone.destinationZone, requestedZone, 150);
-                boolean sameSeverity = event.getSeverity() == drone.assignedEvent.getSeverity();
-
-                if (passesThrough && sameSeverity) {
-                    double timeToZone = drone.estimateSecondsToZone(requestedZone);
-                    double score = timeToZone;
-                    if (score < bestScore) {
-                        bestScore = score;
-                        best = drone;
-                    }
-                }
-            }
-        }
-        return best;
-    }
-
     private void dispatch(DroneInfo drone, FireEvent event) {
         drone.markBusy(event);
         if (drone.remainingAgent == null) {
@@ -552,8 +520,6 @@ public class SchedulerSubsystem implements Runnable {
         try {
             sendSocket.send(packet);
             sendToGUI(taskMessage);
-
-            // GUI resync: if a zone was previously green, force it back to active
             sendToGUI(Message.fireEvent(event));
         } catch (IOException e) {
             throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
@@ -603,8 +569,6 @@ public class SchedulerSubsystem implements Runnable {
             try {
                 sendSocket.send(packet);
                 sendToGUI(taskMessage);
-
-                // GUI resync
                 sendToGUI(Message.fireEvent(event));
             } catch (IOException e) {
                 throw new RuntimeException("Failed to dispatch Drone " + drone.droneId, e);
@@ -729,13 +693,6 @@ public class SchedulerSubsystem implements Runnable {
 
     private boolean hasPendingEvents() {
         return !pendingEvents.isEmpty();
-    }
-
-    private void maybePrintMetricsReport() {
-        int activeFires = counts != null ? counts.getActiveFires() : 0;
-        if (metrics.shouldPrintFinalReport(!hasPendingEvents(), !hasBusyDrones(), activeFires)) {
-            metrics.printFinalReport();
-        }
     }
 
     private void refreshSchedulerState() {

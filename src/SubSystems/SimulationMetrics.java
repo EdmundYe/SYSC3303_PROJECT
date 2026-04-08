@@ -15,30 +15,54 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 public class SimulationMetrics {
 
+    // Keep this aligned with the simulation speed used by your drone subsystem.
+    private static final double DRONE_SIMULATION_SPEED = 60.0;
+
     private static final class EventMetric {
+        final String key;
         final int zoneId;
         final Severity severity;
-        final long detectedAtMs;
-        Long extinguishedAtMs;
+        final long createdAtMs;
 
-        EventMetric(int zoneId, Severity severity, long detectedAtMs) {
+        Long firstArrivalAtMs;
+        Long completedAtMs;
+
+        EventMetric(String key, int zoneId, Severity severity, long createdAtMs) {
+            this.key = key;
             this.zoneId = zoneId;
             this.severity = severity;
-            this.detectedAtMs = detectedAtMs;
+            this.createdAtMs = createdAtMs;
         }
 
-        long responseDurationMs() {
-            if (extinguishedAtMs == null) return -1;
-            return extinguishedAtMs - detectedAtMs;
+        long responseTimeWallMs() {
+            if (firstArrivalAtMs == null) return -1L;
+            return Math.max(0L, firstArrivalAtMs - createdAtMs);
+        }
+
+        long completionTimeWallMs() {
+            if (completedAtMs == null) return -1L;
+            return Math.max(0L, completedAtMs - createdAtMs);
+        }
+
+        double responseTimeSimMs() {
+            long v = responseTimeWallMs();
+            return v < 0 ? -1.0 : v * DRONE_SIMULATION_SPEED;
+        }
+
+        double completionTimeSimMs() {
+            long v = completionTimeWallMs();
+            return v < 0 ? -1.0 : v * DRONE_SIMULATION_SPEED;
         }
     }
 
     private static final class DroneMetric {
         final int droneId;
         final EnumMap<DroneState, Long> stateTimeMs = new EnumMap<>(DroneState.class);
+
         DroneState lastState = DroneState.IDLE;
         long lastStateChangeMs = System.currentTimeMillis();
 
@@ -57,7 +81,7 @@ public class SimulationMetrics {
         }
 
         void recordStateTransition(DroneState newState, long nowMs) {
-            long delta = Math.max(0, nowMs - lastStateChangeMs);
+            long delta = Math.max(0L, nowMs - lastStateChangeMs);
             stateTimeMs.put(lastState, stateTimeMs.getOrDefault(lastState, 0L) + delta);
             lastState = newState;
             lastStateChangeMs = nowMs;
@@ -71,37 +95,87 @@ public class SimulationMetrics {
             lastY = y;
         }
 
-        long getStateTime(DroneState state) {
+        long getStateTimeWallMs(DroneState state) {
             return stateTimeMs.getOrDefault(state, 0L);
+        }
+
+        double getStateTimeSimMs(DroneState state) {
+            return getStateTimeWallMs(state) * DRONE_SIMULATION_SPEED;
+        }
+
+        double getActiveTimeSimMs() {
+            return getStateTimeSimMs(DroneState.EN_ROUTE)
+                    + getStateTimeSimMs(DroneState.DROPPING)
+                    + getStateTimeSimMs(DroneState.RETURNING);
+        }
+
+        double getIdleTimeSimMs() {
+            return getStateTimeSimMs(DroneState.IDLE);
+        }
+
+        double getTrackedTimeSimMs() {
+            double total = 0.0;
+            for (DroneState state : DroneState.values()) {
+                total += getStateTimeSimMs(state);
+            }
+            return total;
+        }
+
+        double getUtilizationPercent() {
+            double tracked = getTrackedTimeSimMs();
+            if (tracked <= 0.0) return 0.0;
+            return (getActiveTimeSimMs() / tracked) * 100.0;
         }
     }
 
-    private final Map<String, EventMetric> eventsByRequestId = new HashMap<>();
+    private final Map<String, EventMetric> eventsByKey = new HashMap<>();
     private final Map<Integer, DroneMetric> drones = new HashMap<>();
+    private final Map<Integer, String> activeEventKeyByZone = new HashMap<>();
 
-    private long firstEventDetectedMs = -1;
-    private long lastFireOutMs = -1;
-    private final long simulationStartMs = System.currentTimeMillis();
+    private long simulationStartMs = System.currentTimeMillis();
+    private long firstEventDetectedMs = -1L;
+    private long lastFireOutMs = -1L;
+
     private boolean finalReportPrinted = false;
 
+    public synchronized void registerDrone(int droneId) {
+        drones.computeIfAbsent(droneId, DroneMetric::new);
+    }
+
+    public synchronized void registerDroneRange(int totalDrones) {
+        for (int i = 1; i <= totalDrones; i++) {
+            registerDrone(i);
+        }
+    }
+
     public synchronized void recordFireDetected(FireEvent event) {
-        long detectedAtMs = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
 
         if (firstEventDetectedMs < 0) {
-            firstEventDetectedMs = detectedAtMs;
+            firstEventDetectedMs = now;
         }
 
         String key = buildEventKey(event);
-        eventsByRequestId.put(key, new EventMetric(event.getZoneId(), event.getSeverity(), detectedAtMs));
+        EventMetric metric = new EventMetric(key, event.getZoneId(), event.getSeverity(), now);
+        eventsByKey.put(key, metric);
+        activeEventKeyByZone.put(event.getZoneId(), key);
     }
 
     public synchronized void recordFireOut(FireEvent event) {
         long now = System.currentTimeMillis();
         String key = buildEventKey(event);
-        EventMetric metric = eventsByRequestId.get(key);
+        EventMetric metric = eventsByKey.get(key);
+
         if (metric != null) {
-            metric.extinguishedAtMs = now;
+            metric.completedAtMs = now;
+        } else {
+            metric = activeEventByZone(event.getZoneId());
+            if (metric != null) {
+                metric.completedAtMs = now;
+            }
         }
+
+        activeEventKeyByZone.remove(event.getZoneId());
         lastFireOutMs = now;
     }
 
@@ -114,6 +188,16 @@ public class SimulationMetrics {
         }
 
         dm.recordPosition(status.getPosX(), status.getPosY());
+
+        // "first arrives to service it" is best approximated here as the first DROPPING state
+        // for the currently active event in that zone.
+        Integer zoneId = status.get_zone_id();
+        if (zoneId != null && status.getState() == DroneState.DROPPING) {
+            EventMetric ev = activeEventByZone(zoneId);
+            if (ev != null && ev.firstArrivalAtMs == null) {
+                ev.firstArrivalAtMs = now;
+            }
+        }
     }
 
     public synchronized void recordDroneDone(int droneId) {
@@ -129,7 +213,9 @@ public class SimulationMetrics {
     public synchronized void flushOpenStateTimes() {
         long now = System.currentTimeMillis();
         for (DroneMetric dm : drones.values()) {
-            dm.recordStateTransition(dm.lastState, now);
+            long delta = Math.max(0L, now - dm.lastStateChangeMs);
+            dm.stateTimeMs.put(dm.lastState, dm.stateTimeMs.getOrDefault(dm.lastState, 0L) + delta);
+            dm.lastStateChangeMs = now;
         }
     }
 
@@ -148,11 +234,9 @@ public class SimulationMetrics {
         flushOpenStateTimes();
 
         List<String> lines = buildReportLines();
-
         for (String line : lines) {
             System.out.println(line);
         }
-
         writeReportToFile(lines);
     }
 
@@ -164,54 +248,81 @@ public class SimulationMetrics {
         lines.add("SIMULATION METRICS REPORT");
         lines.add("==================================================");
 
-        int completedEvents = 0;
-        long totalResponseMs = 0;
+        double totalResponseSimMs = 0.0;
+        double maxResponseSimMs = 0.0;
+        int responseCount = 0;
 
-        for (EventMetric ev : eventsByRequestId.values()) {
-            if (ev.extinguishedAtMs != null) {
-                completedEvents++;
-                totalResponseMs += ev.responseDurationMs();
+        double totalCompletionSimMs = 0.0;
+        double maxCompletionSimMs = 0.0;
+        int completionCount = 0;
+
+        for (EventMetric ev : eventsByKey.values()) {
+            double responseSimMs = ev.responseTimeSimMs();
+            if (responseSimMs >= 0.0) {
+                totalResponseSimMs += responseSimMs;
+                maxResponseSimMs = Math.max(maxResponseSimMs, responseSimMs);
+                responseCount++;
+            }
+
+            double completionSimMs = ev.completionTimeSimMs();
+            if (completionSimMs >= 0.0) {
+                totalCompletionSimMs += completionSimMs;
+                maxCompletionSimMs = Math.max(maxCompletionSimMs, completionSimMs);
+                completionCount++;
             }
         }
 
-        double avgResponseSec = completedEvents == 0 ? 0.0 : (totalResponseMs / 1000.0) / completedEvents;
-        double totalRunSec = (firstEventDetectedMs >= 0 && lastFireOutMs >= 0)
-                ? (lastFireOutMs - firstEventDetectedMs) / 1000.0
+        double avgResponseSec = responseCount == 0 ? 0.0 : (totalResponseSimMs / responseCount) / 1000.0;
+        double maxResponseSec = maxResponseSimMs / 1000.0;
+
+        double avgCompletionSec = completionCount == 0 ? 0.0 : (totalCompletionSimMs / completionCount) / 1000.0;
+        double maxCompletionSec = maxCompletionSimMs / 1000.0;
+
+        double wallClockRuntimeSec = (System.currentTimeMillis() - simulationStartMs) / 1000.0;
+        double simulatedRunSec = (firstEventDetectedMs >= 0 && lastFireOutMs >= 0)
+                ? ((lastFireOutMs - firstEventDetectedMs) * DRONE_SIMULATION_SPEED) / 1000.0
                 : 0.0;
 
-        lines.add(String.format("Simulation wall-clock runtime: %.2f s", (System.currentTimeMillis() - simulationStartMs) / 1000.0));
-        lines.add(String.format("Time from first incident to last fire extinguished: %.2f s", totalRunSec));
-        lines.add(String.format("Completed incidents: %d", completedEvents));
-        lines.add(String.format("Average incident detect-to-extinguish time: %.2f s", avgResponseSec));
+        lines.add(String.format("Simulation wall-clock runtime: %.2f s", wallClockRuntimeSec));
+        lines.add(String.format("Time from first incident to last fire extinguished: %.2f s", simulatedRunSec));
+        lines.add(String.format("Completed incidents: %d", completionCount));
+        lines.add("");
+        lines.add(String.format("Average Event Response Time: %.2f s", avgResponseSec));
+        lines.add(String.format("Maximum Event Response Time: %.2f s", maxResponseSec));
+        lines.add(String.format("Average Event Completion Time: %.2f s", avgCompletionSec));
+        lines.add(String.format("Maximum Event Completion Time: %.2f s", maxCompletionSec));
 
         double fleetDistance = 0.0;
-        long fleetIdleMs = 0L;
-        long fleetEnRouteMs = 0L;
-        long fleetDroppingMs = 0L;
-        long fleetReturningMs = 0L;
-        long fleetFaultedMs = 0L;
+        double fleetIdleSimMs = 0.0;
+        double fleetEnRouteSimMs = 0.0;
+        double fleetDroppingSimMs = 0.0;
+        double fleetReturningSimMs = 0.0;
+        double fleetFaultedSimMs = 0.0;
 
         lines.add("");
         lines.add("Per-drone metrics:");
-        for (DroneMetric dm : drones.values()) {
+        for (int droneId : new TreeSet<>(drones.keySet())) {
+            DroneMetric dm = drones.get(droneId);
+
             fleetDistance += dm.totalDistanceMeters;
-            fleetIdleMs += dm.getStateTime(DroneState.IDLE);
-            fleetEnRouteMs += dm.getStateTime(DroneState.EN_ROUTE);
-            fleetDroppingMs += dm.getStateTime(DroneState.DROPPING);
-            fleetReturningMs += dm.getStateTime(DroneState.RETURNING);
-            fleetFaultedMs += dm.getStateTime(DroneState.FAULTED);
+            fleetIdleSimMs += dm.getStateTimeSimMs(DroneState.IDLE);
+            fleetEnRouteSimMs += dm.getStateTimeSimMs(DroneState.EN_ROUTE);
+            fleetDroppingSimMs += dm.getStateTimeSimMs(DroneState.DROPPING);
+            fleetReturningSimMs += dm.getStateTimeSimMs(DroneState.RETURNING);
+            fleetFaultedSimMs += dm.getStateTimeSimMs(DroneState.FAULTED);
 
             lines.add(String.format(
-                    "Drone %d | distance=%.1f m | idle=%.2f s | en_route=%.2f s | dropping=%.2f s | returning=%.2f s | faulted=%.2f s | missions=%d | faults=%d",
+                    "Drone %d | distance=%.1f m | idle=%.2f s | en_route=%.2f s | dropping=%.2f s | returning=%.2f s | faulted=%.2f s | missions=%d | faults=%d | utilization=%.2f%%",
                     dm.droneId,
                     dm.totalDistanceMeters,
-                    dm.getStateTime(DroneState.IDLE) / 1000.0,
-                    dm.getStateTime(DroneState.EN_ROUTE) / 1000.0,
-                    dm.getStateTime(DroneState.DROPPING) / 1000.0,
-                    dm.getStateTime(DroneState.RETURNING) / 1000.0,
-                    dm.getStateTime(DroneState.FAULTED) / 1000.0,
+                    dm.getStateTimeSimMs(DroneState.IDLE) / 1000.0,
+                    dm.getStateTimeSimMs(DroneState.EN_ROUTE) / 1000.0,
+                    dm.getStateTimeSimMs(DroneState.DROPPING) / 1000.0,
+                    dm.getStateTimeSimMs(DroneState.RETURNING) / 1000.0,
+                    dm.getStateTimeSimMs(DroneState.FAULTED) / 1000.0,
                     dm.completedMissions,
-                    dm.faultCount
+                    dm.faultCount,
+                    dm.getUtilizationPercent()
             ));
         }
 
@@ -219,11 +330,11 @@ public class SimulationMetrics {
 
         lines.add("");
         lines.add("Fleet averages:");
-        lines.add(String.format("Average drone idle time: %.2f s", (fleetIdleMs / 1000.0) / droneCount));
-        lines.add(String.format("Average drone en-route time: %.2f s", (fleetEnRouteMs / 1000.0) / droneCount));
-        lines.add(String.format("Average drone dropping time: %.2f s", (fleetDroppingMs / 1000.0) / droneCount));
-        lines.add(String.format("Average drone returning time: %.2f s", (fleetReturningMs / 1000.0) / droneCount));
-        lines.add(String.format("Average drone faulted time: %.2f s", (fleetFaultedMs / 1000.0) / droneCount));
+        lines.add(String.format("Average drone idle time: %.2f s", (fleetIdleSimMs / 1000.0) / droneCount));
+        lines.add(String.format("Average drone en-route time: %.2f s", (fleetEnRouteSimMs / 1000.0) / droneCount));
+        lines.add(String.format("Average drone dropping time: %.2f s", (fleetDroppingSimMs / 1000.0) / droneCount));
+        lines.add(String.format("Average drone returning time: %.2f s", (fleetReturningSimMs / 1000.0) / droneCount));
+        lines.add(String.format("Average drone faulted time: %.2f s", (fleetFaultedSimMs / 1000.0) / droneCount));
         lines.add(String.format("Total fleet distance travelled: %.1f m", fleetDistance));
 
         lines.add("==================================================");
@@ -246,6 +357,12 @@ public class SimulationMetrics {
         } catch (IOException e) {
             System.err.println("[METRICS] Failed to write metrics_report.txt: " + e.getMessage());
         }
+    }
+
+    private EventMetric activeEventByZone(int zoneId) {
+        String key = activeEventKeyByZone.get(zoneId);
+        if (key == null) return null;
+        return eventsByKey.get(key);
     }
 
     private String buildEventKey(FireEvent event) {

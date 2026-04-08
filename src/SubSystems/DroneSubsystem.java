@@ -19,7 +19,7 @@ public class DroneSubsystem implements Runnable {
     private static final int ACCELERATION = 6; // m/s
     private static final int DECELERATION = 4; // m/s
     private static final int RESET_TIME_MS = 3000;
-    private static final double SIMULATION_SPEED = 10.0;
+    private static final double SIMULATION_SPEED = 60.0;
 
     private final int droneId;
     private DroneState state = DroneState.IDLE;
@@ -86,7 +86,7 @@ public class DroneSubsystem implements Runnable {
                     // no message this cycle
                 }
 
-                Thread.sleep((long)(500 / SIMULATION_SPEED));
+                Thread.sleep((long) (500 / SIMULATION_SPEED));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -140,7 +140,7 @@ public class DroneSubsystem implements Runnable {
         socket.send(packet);
         if (common.DebugOutputFilter.isDroneOutputActive())
             System.out.println("[DRONE " + droneId + "] Sent status with pos ("
-                + String.format("%.0f", posX) + "," + String.format("%.0f", posY) + "): " + status);
+                    + String.format("%.0f", posX) + "," + String.format("%.0f", posY) + "): " + status);
     }
 
     private void sendDone() throws IOException {
@@ -250,10 +250,13 @@ public class DroneSubsystem implements Runnable {
 
         if (common.DebugOutputFilter.isDroneOutputActive())
             System.out.println("[DRONE " + droneId + "] Dropping agent (" + command.getSeverity() + ")");
-        long droppingSteps = Math.max(1, dropMs / 2000);
+
+        long droppingSteps = Math.max(1, dropMs / 200);
+        long dropStepMs = Math.max(1, dropMs / droppingSteps);
         int agentPerStep = (int) Math.ceil((double) amountUsed / droppingSteps);
+
         for (int i = 0; i < droppingSteps; i++) {
-            Thread.sleep(Math.max(1, (long) (((double) dropMs / droppingSteps) / SIMULATION_SPEED)));
+            Thread.sleep(dropStepMs);
             batteryLevel = Math.max(0, batteryLevel - BATTERY_DRAIN_DROPPING);
             remainingAgent = Math.max(0, remainingAgent - agentPerStep);
             sendStatusWithPosition(state, currentZoneId, remainingAgent, zoneCoords[0], zoneCoords[1]);
@@ -283,7 +286,7 @@ public class DroneSubsystem implements Runnable {
             throws InterruptedException, IOException {
 
         int[] dest = ZoneMap.get(zoneId);
-        long steps = 10;
+        long steps = 25;
         long stepMs = Math.max(1, totalMs / steps);
 
         long faultDelayMs = (long) command.getFaultDelaySeconds() * 1000L;
@@ -293,24 +296,6 @@ public class DroneSubsystem implements Runnable {
         for (int i = 1; i <= steps; i++) {
             Thread.sleep(stepMs);
             elapsedMs += stepMs;
-
-            try {
-                byte[] buf = new byte[2048];
-                DatagramPacket p = new DatagramPacket(buf, buf.length);
-                socket.receive(p);
-                Message msg = Message.fromBytes(Arrays.copyOf(p.getData(), p.getLength()));
-
-                if (msg.getType() == MessageType.DRONE_TASK) {
-                    DroneCommand redirect = (DroneCommand) msg.getPayload();
-                    if (common.DebugOutputFilter.isDroneOutputActive())
-                        System.out.println("[DRONE " + droneId + "] Redirected to zone " + redirect.get_zone_id());
-                    currentZoneId = redirect.get_zone_id();
-                    return travelToZone(currentZoneId,
-                            computeTravelTimeMs(ZoneMap.distanceFromBase(currentZoneId)),
-                            redirect);
-                }
-            } catch (SocketTimeoutException ignored) {
-            }
 
             double progress = (double) i / steps;
             double currX = dest[0] * progress;
@@ -326,11 +311,12 @@ public class DroneSubsystem implements Runnable {
 
                 if (common.DebugOutputFilter.isDroneOutputActive())
                     System.out.println("[DRONE " + droneId + "] Drone stuck fault detected");
+
                 transition(DroneEvent.FAULT_DETECTED);
                 sendStatusWithPosition(state, zoneId, remainingAgent, currX, currY);
                 sendFault(FaultType.DRONE_STUCK, zoneId, true);
 
-                Thread.sleep( (long) (RESET_TIME_MS / SIMULATION_SPEED));
+                Thread.sleep((long) (RESET_TIME_MS / SIMULATION_SPEED));
                 transition(DroneEvent.RECOVERED);
 
                 state = DroneState.RETURNING;
@@ -360,7 +346,7 @@ public class DroneSubsystem implements Runnable {
                                   double startY,
                                   long totalMs,
                                   DroneState reportState) throws InterruptedException, IOException {
-        long steps = 10;
+        long steps = 25;
         long stepMs = Math.max(1, totalMs / steps);
 
         for (int i = 1; i <= steps; i++) {
