@@ -314,6 +314,8 @@ public class SchedulerSubsystem implements Runnable {
 
         while (!pendingEvents.isEmpty()) {
             boolean dispatched = false;
+            List<FireEvent> sorted = new ArrayList<>(pendingEvents);
+            sorted.sort(Comparator.comparing(FireEvent::getTimestamp));
 
             for (FireEvent event : new ArrayList<>(pendingEvents)) {
                 if (isZoneActive(event.getZoneId())) {
@@ -322,12 +324,23 @@ public class SchedulerSubsystem implements Runnable {
 
                 String severity = event.getSeverity().toString().toLowerCase();
                 int dronesNeeded = SEVERITY_DRONE_COUNT.getOrDefault(severity, 1);
+                // Check redirect opportunity first — busy drone passing through
+                DroneInfo redirectCandidate = findPassThroughDrone(event);
+                if (redirectCandidate != null) {
+                    pendingEvents.remove(event);
+                    redirect(redirectCandidate, event);
+                    transition(SchedulerEvent.DISPATCH_SENT);
+                    reconcileZoneState();
+                    refreshSchedulerState();
+                    dispatched = true;
+                    break;
+                }
 
                 List<DroneInfo> dronesList = new ArrayList<>();
                 Set<Integer> assignedIds = new HashSet<>();
 
                 for (int i = 0; i < dronesNeeded; i++) {
-                    DroneInfo candidate = findBestDroneForNextEvent(event, assignedIds, dronesNeeded);
+                    DroneInfo candidate = findBestIdleDroneForEvent(event, assignedIds, dronesNeeded);
                     if (candidate == null) break;
                     dronesList.add(candidate);
                     assignedIds.add(candidate.droneId);
@@ -355,6 +368,110 @@ public class SchedulerSubsystem implements Runnable {
                 return;
             }
         }
+    }
+
+    private DroneInfo findPassThroughDrone(FireEvent event) {
+        int requestedZone = event.getZoneId();
+        DroneInfo best = null;
+        double bestScore = Double.MAX_VALUE;
+
+        for (DroneInfo drone : drones.values()) {
+            if (!drone.busy
+                    || drone.destinationZone == -1
+                    || drone.assignedEvent == null
+                    || drone.lastKnownState == DroneState.OFFLINE
+                    || drone.lastKnownState == DroneState.FAULTED) continue;
+
+            if (event.getSeverity() != drone.assignedEvent.getSeverity()) continue;
+
+            boolean passesThrough = ZoneMap.isOnPath(drone.destinationZone, requestedZone, 150);
+            if (!passesThrough) continue;
+
+            // Include mission penalty so overworked drones aren't always chosen
+            double score = drone.estimateSecondsToZone(requestedZone) + drone.missionsCompleted * 10.0;
+            if (score < bestScore) {
+                bestScore = score;
+                best = drone;
+            }
+        }
+        return best;
+    }
+    // Only looks at idle/dispatchable drones
+    private DroneInfo findBestIdleDroneForEvent(FireEvent event, Set<Integer> excludedIds, int dronesNeeded) {
+        int requestedZone = event.getZoneId();
+        int requiredAgent = (int) Math.ceil(
+                (double) event.getSeverity().requiredAgentLitres() / dronesNeeded);
+
+        DroneInfo best = null;
+        double bestScore = Double.MAX_VALUE;
+
+        for (DroneInfo drone : drones.values()) {
+            if (excludedIds.contains(drone.droneId)) continue;
+            if (!drone.isDispatchable()) continue;
+            if (drone.remainingAgent != null && drone.remainingAgent < requiredAgent) continue;
+
+            double score = drone.estimateSecondsToZone(requestedZone) + drone.missionsCompleted * 10.0;
+            if (score < bestScore) {
+                bestScore = score;
+                best = drone;
+            }
+        }
+        return best;
+    }
+
+    // Sends redirect to a drone already in flight — preserves old assignment tracking
+    private void redirect(DroneInfo drone, FireEvent newEvent) {
+        // Keep old event tracked until drone confirms done/fault on new one
+        FireEvent oldEvent = drone.assignedEvent;
+
+        // Remove old zone count but don't release zone yet — drone hasn't reported done
+        int oldZone = oldEvent.getZoneId();
+        int oldRemaining = zoneActiveDroneCount.getOrDefault(oldZone, 1) - 1;
+        if (oldRemaining <= 0) {
+            zoneActiveDroneCount.remove(oldZone);
+            activeZones.remove(oldZone);
+            // Requeue old event since it won't be serviced
+            if (!isZonePending(oldZone) && !isZoneActive(oldZone)) {
+                pendingEvents.add(oldEvent);
+                System.out.println("[SCHEDULER] Requeued old event for zone " + oldZone
+                        + " after redirect");
+            }
+        } else {
+            zoneActiveDroneCount.put(oldZone, oldRemaining);
+        }
+
+        drone.markBusy(newEvent);
+        activeZones.add(newEvent.getZoneId());
+        zoneActiveDroneCount.merge(newEvent.getZoneId(), 1, Integer::sum);
+
+        int agentAmount = newEvent.getSeverity().requiredAgentLitres();
+        DroneCommand command = new DroneCommand(
+                "REQ-" + newEvent.getTimestamp().toEpochMilli(),
+                DroneCommandOptions.DISPATCH,
+                newEvent.getZoneId(),
+                newEvent.getSeverity(),
+                agentAmount,
+                newEvent.getFaultType(),
+                newEvent.getFaultDelaySeconds()
+        );
+
+        Message taskMessage = Message.droneTask(drone.droneId, command);
+        byte[] payload = taskMessage.toBytes();
+
+        DatagramPacket packet = new DatagramPacket(
+                payload, payload.length,
+                drone.getListenAddress(), drone.getListenPort()
+        );
+
+        try {
+            sendSocket.send(packet);
+            sendToGUI(taskMessage);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to redirect Drone " + drone.droneId, e);
+        }
+
+        System.out.println("[SCHEDULER] Redirected Drone " + drone.droneId
+                + " from zone " + oldZone + " -> zone " + newEvent.getZoneId());
     }
 
     private DroneInfo findBestDroneForNextEvent(FireEvent event, Set<Integer> excludedIds, int dronesNeeded) {

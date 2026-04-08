@@ -2,25 +2,27 @@
 ==================================================
 SIMULATION METRICS REPORT
 ==================================================
-Simulation wall-clock runtime: 271.58 s
-Time from first incident to last fire extinguished: 270.97 s
+Simulation wall-clock runtime: 25.61 s
+Time from first incident to last fire extinguished: 25.12 s
 Completed incidents: 5
-Average incident detect-to-extinguish time: 181.07 s
+Average incident detect-to-extinguish time: 9.99 s
 
 Per-drone metrics:
-Drone 1 | distance=4501.2 m | idle=54.98 s | en_route=30.47 s | dropping=150.27 s | returning=31.85 s | faulted=0.00 s | missions=1 | faults=0
-Drone 2 | distance=3309.4 m | idle=164.09 s | en_route=26.40 s | dropping=50.22 s | returning=27.31 s | faulted=0.00 s | missions=1 | faults=0
-Drone 3 | distance=6889.1 m | idle=6.48 s | en_route=50.53 s | dropping=150.27 s | returning=54.96 s | faulted=3.01 s | missions=1 | faults=1
-Drone 4 | distance=3069.5 m | idle=0.00 s | en_route=34.83 s | dropping=0.00 s | returning=0.00 s | faulted=0.00 s | missions=0 | faults=1
-Drone 5 | distance=3161.3 m | idle=106.24 s | en_route=25.83 s | dropping=100.25 s | returning=26.69 s | faulted=0.00 s | missions=1 | faults=0
-Drone 6 | distance=1850.0 m | idle=106.15 s | en_route=20.18 s | dropping=100.24 s | returning=20.42 s | faulted=0.00 s | missions=1 | faults=0
+Drone 1 | distance=6506.6 m | idle=14.85 s | en_route=5.28 s | dropping=0.53 s | returning=3.84 s | faulted=0.00 s | missions=1 | faults=0
+Drone 2 | distance=2354.7 m | idle=7.82 s | en_route=3.89 s | dropping=0.52 s | returning=2.32 s | faulted=0.00 s | missions=1 | faults=0
+Drone 3 | distance=2354.7 m | idle=7.81 s | en_route=3.88 s | dropping=0.52 s | returning=2.33 s | faulted=0.00 s | missions=1 | faults=0
+Drone 4 | distance=9201.8 m | idle=2.50 s | en_route=5.91 s | dropping=0.52 s | returning=4.56 s | faulted=0.00 s | missions=1 | faults=0
+Drone 5 | distance=5466.1 m | idle=2.80 s | en_route=4.96 s | dropping=0.52 s | returning=3.52 s | faulted=0.00 s | missions=1 | faults=0
+Drone 6 | distance=5466.1 m | idle=2.82 s | en_route=4.96 s | dropping=0.52 s | returning=3.51 s | faulted=0.00 s | missions=1 | faults=0
+Drone 7 | distance=8473.7 m | idle=0.01 s | en_route=5.74 s | dropping=0.52 s | returning=4.37 s | faulted=0.00 s | missions=1 | faults=0
+Drone 8 | distance=8473.7 m | idle=0.00 s | en_route=5.74 s | dropping=0.53 s | returning=4.37 s | faulted=0.00 s | missions=1 | faults=0
 
 Fleet averages:
-Average drone idle time: 72.99 s
-Average drone en-route time: 31.37 s
-Average drone dropping time: 91.87 s
-Average drone returning time: 26.87 s
-Average drone faulted time: 0.50 s
-Total fleet distance travelled: 22780.5 m
+Average drone idle time: 4.83 s
+Average drone en-route time: 5.05 s
+Average drone dropping time: 0.52 s
+Average drone returning time: 3.60 s
+Average drone faulted time: 0.00 s
+Total fleet distance travelled: 48297.4 m
 ==================================================
 

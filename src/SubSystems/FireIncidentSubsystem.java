@@ -35,6 +35,8 @@ public class FireIncidentSubsystem implements Runnable {
     private DatagramSocket socket;
     long previousEventMs = -1;
 
+    private static final double TIME_SCALE = 60.0;
+
     public FireIncidentSubsystem(String csvFile) {
         this.csvFile = csvFile;
     }
@@ -97,7 +99,7 @@ public class FireIncidentSubsystem implements Runnable {
                 }
                 long currentEventMs = event.getTimestamp().toEpochMilli();
                 if(previousEventMs >= 0){
-                    long delay = Math.min(currentEventMs - previousEventMs, 3000);
+                    long delay = (long)((currentEventMs - previousEventMs) / TIME_SCALE);
                     if (delay > 0){
                         try {
                             Thread.sleep(delay);
@@ -278,7 +280,7 @@ public class FireIncidentSubsystem implements Runnable {
 
             // Convert time string to Instant
             // Use current date + provided time
-            Instant timestamp = Instant.now();
+            Instant timestamp = null;
             try {
                 // Parse "14:03:15" format
                 java.time.LocalTime time = java.time.LocalTime.parse(
@@ -288,7 +290,7 @@ public class FireIncidentSubsystem implements Runnable {
 
                 // Combine with today's date to create full timestamp
                 timestamp = time
-                        .atDate(java.time.LocalDate.now())
+                        .atDate(java.time.LocalDate.of(2000,1,1))
                         .atZone(java.time.ZoneId.systemDefault())
                         .toInstant();
             } catch (Exception timeParseEx) {
