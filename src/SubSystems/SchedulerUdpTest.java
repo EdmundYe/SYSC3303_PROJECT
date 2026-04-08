@@ -119,51 +119,63 @@ class SchedulerUdpTest {
     }
 
     @Test
-    void dispatchesPendingFourthEventWhenDroneReportsDone() throws Exception {
+    void dispatchesPendingEventWhenDroneReportsDone_newScheduler() throws Exception {
+        // Register 3 drones
         registerDrone(1, drone1Socket);
         registerDrone(2, drone2Socket);
         registerDrone(3, drone3Socket);
 
-        sendFireLine("14:03:15,3,FIRE_DETECTED,HIGH,NONE,0");
+        // Send 3 fires that will be dispatched immediately
+        sendFireLine("14:03:15,3,FIRE_DETECTED,LOW,NONE,0");
         sendFireLine("14:03:15,2,FIRE_DETECTED,LOW,NONE,0");
-        sendFireLine("14:03:15,1,FIRE_DETECTED,MODERATE,NONE,0");
-        sendFireLine("14:03:15,4,FIRE_DETECTED,HIGH,NONE,0");
+        sendFireLine("14:03:15,1,FIRE_DETECTED,LOW,NONE,0");
 
+        // Send a 4th fire that will go into the pending queue
+        sendFireLine("14:03:15,4,FIRE_DETECTED,LOW,NONE,0");
+
+        // Receive 4 ACKs from fire subsystem
         for (int i = 0; i < 4; i++) {
             assertFireAck(receiveMessage(fireSocket));
         }
 
+        // Receive 3 DRONE_TASK messages (one for each drone)
         receiveMessage(drone1Socket);
         receiveMessage(drone2Socket);
         receiveMessage(drone3Socket);
 
-        assertEquals(3, getPendingQueueSize());
+        // One event should be pending
+        assertEquals(1, getPendingQueueSize());
 
+        // Drone 1 finishes its task
         DroneStatus doneStatus = new DroneStatus(1, DroneState.IDLE, null, 80);
         Message done = Message.droneDone(1, doneStatus);
 
         scheduler.handle(done, InetAddress.getLoopbackAddress(), drone1Socket.getLocalPort());
 
+        // FIRE_OUT should be sent for the completed event
         Message fireOut = receiveMessage(fireSocket);
         assertEquals(MessageType.FIRE_OUT, fireOut.getType());
         assertNotNull(fireOut.getPayload());
 
+        // Drone 1 should receive the pending event as a new task
         Message nextTask = receiveMessage(drone1Socket);
         assertEquals(MessageType.DRONE_TASK, nextTask.getType());
 
         DroneCommand cmd = (DroneCommand) nextTask.getPayload();
         assertEquals(4, cmd.get_zone_id());
-        assertEquals(Severity.HIGH, cmd.getSeverity());
-
+        assertEquals(Severity.LOW, cmd.getSeverity());
         assertEquals(FaultType.NONE, cmd.getFaultType());
         assertEquals(0, cmd.getFaultDelaySeconds());
 
+        // Pending queue should now be empty
         assertEquals(0, getPendingQueueSize());
 
+        // Drone 1 should now be busy again and have 1 completed mission
         Map<Integer, DroneInfo> drones = getDroneMap();
         assertEquals(1, drones.get(1).missionsCompleted);
         assertTrue(drones.get(1).busy);
     }
+
 
     @Test
     void schedulerDroneStatusCheck() throws Exception {

@@ -330,8 +330,8 @@ class SchedulerSubsystemTest {
          * Tests how scheduler handles FIRE_EVENT
          * Expected result: response message confirms event is sent to events queue
          * @throws InterruptedException
+         * Old test with legacy MessageTransport prior to UDP
          */
-    @Test
     @Deprecated
     void testHandleFireEvent() throws InterruptedException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -365,8 +365,8 @@ class SchedulerSubsystemTest {
      * Tests how scheduler handles DRONE_POLL
      * Expected result: message type from drone response matches DRONE_TASK
      * @throws InterruptedException
+     * * Old test with legacy MessageTransport prior to UDP
      */
-    @Test
     @Deprecated
     void testHandleDronePoll() throws InterruptedException{
         Instant timestamp = Instant.now();
@@ -397,8 +397,8 @@ class SchedulerSubsystemTest {
      * Tests how scheduler handles DRONE_DONE
      * Expected result: response message confirms drone task complete
      * @throws InterruptedException
+     * * Old test with legacy MessageTransport prior to UDP
      */
-    @Test
     @Deprecated
     void testHandleDroneDone() throws InterruptedException{
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
