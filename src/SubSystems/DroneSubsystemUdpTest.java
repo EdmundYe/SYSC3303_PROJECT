@@ -77,14 +77,10 @@ class DroneSubsystemUdpTest {
     }
 
     @Test
-    void agentUsageForSeverity_returnsExpectedAmounts() throws Exception {
-        int low = (int) invokeMethod("agentUsageForSeverity", new Class[]{Severity.class}, Severity.LOW);
-        int moderate = (int) invokeMethod("agentUsageForSeverity", new Class[]{Severity.class}, Severity.MODERATE);
-        int high = (int) invokeMethod("agentUsageForSeverity", new Class[]{Severity.class}, Severity.HIGH);
-
-        assertEquals(10, low);
-        assertEquals(20, moderate);
-        assertEquals(30, high);
+    void requiredAgentLitres_returnsExpectedAmounts() throws Exception {
+        assertEquals(10, Severity.LOW.requiredAgentLitres());
+        assertEquals(20, Severity.MODERATE.requiredAgentLitres());
+        assertEquals(30, Severity.HIGH.requiredAgentLitres());
     }
 
     @Test

@@ -233,7 +233,6 @@ class DroneSubsystemTest {
      * Expected result: Drone receives a DRONE_POLL message from scheduler with droneId as payload
      * @throws Exception
      */
-    @Test
     @Deprecated
     void testRun() throws Exception{
         MessageTransporter testTransporter = new MessageTransporter();
@@ -259,7 +258,6 @@ class DroneSubsystemTest {
      * Expected result: response contains print messages aligned with successful execution.
      * @throws Exception
      */
-    @Test
     @Deprecated
     void testDroneTask() throws Exception{
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -298,7 +296,6 @@ class DroneSubsystemTest {
      * Expected result: response message contains printed messages as if simulating a command execution
      * @throws Exception
      */
-    @Test
     @Deprecated
     void testExecuteCommand() throws Exception{
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

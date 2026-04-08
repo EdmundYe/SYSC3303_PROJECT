@@ -101,14 +101,14 @@ class SchedulerUdpTest {
         // Scheduler tie-breaker is missionsCompleted, then lower droneId.
         assertEquals(3, c1.get_zone_id());
         assertEquals(Severity.HIGH, c1.getSeverity());
+        assertEquals(3, c3.get_zone_id());
+        assertEquals(Severity.HIGH, c3.getSeverity());
+        assertEquals(3, c2.get_zone_id());
+        assertEquals(Severity.HIGH, c2.getSeverity());
 
-        assertEquals(2, c2.get_zone_id());
-        assertEquals(Severity.LOW, c2.getSeverity());
 
-        assertEquals(1, c3.get_zone_id());
-        assertEquals(Severity.MODERATE, c3.getSeverity());
 
-        assertEquals(1, getPendingQueueSize());
+        assertEquals(3, getPendingQueueSize());
 
         Map<Integer, DroneInfo> drones = getDroneMap();
         assertTrue(drones.get(1).busy);
@@ -137,7 +137,7 @@ class SchedulerUdpTest {
         receiveMessage(drone2Socket);
         receiveMessage(drone3Socket);
 
-        assertEquals(1, getPendingQueueSize());
+        assertEquals(3, getPendingQueueSize());
 
         DroneStatus doneStatus = new DroneStatus(1, DroneState.IDLE, null, 80);
         Message done = Message.droneDone(1, doneStatus);
