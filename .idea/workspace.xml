@@ -6,7 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="260e008f-10f7-4a12-9fbd-868217b302ed" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/metrics_report.txt" beforeDir="false" afterPath="$PROJECT_DIR$/metrics_report.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/GUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/GUI.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
@@ -40,12 +39,12 @@
     &quot;assignee&quot;: &quot;Derroccoli&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/EdmundYe/SYSC3303_PROJECT.git&quot;,
-    &quot;accountId&quot;: &quot;b5e79838-5b25-4c67-ae50-0f23b4fb7fe7&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/EdmundYe/SYSC3303_PROJECT.git",
+    "accountId": "2f213367-5a43-4dc4-b9d1-b0d418c46384"
   }
-}</component>
+}]]></component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -178,6 +177,13 @@
         <item itemvalue="JUnit.SchedulerSubsystemTest" />
       </list>
     </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-26cb7f24e5b0-intellij.indexing.shared.core-IU-253.29346.240" />
+      </set>
+    </attachedChunks>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">

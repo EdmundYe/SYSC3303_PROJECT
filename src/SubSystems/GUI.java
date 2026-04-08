@@ -345,9 +345,14 @@ public class GUI extends JFrame {
             case FIRE_OUT -> {
                 FireEvent ev = (FireEvent) msg.getPayload();
                 zones.remove(ev.getZoneId());
-                markZoneExtinguished(ev);
-                firesLabel.setText("Active fires: " + zones.size());
-                showDronesInZones();
+
+                Timer timer = new Timer(600, e -> {
+                    markZoneExtinguished(ev);
+                    firesLabel.setText("Active fires: " + zones.size());
+                    showDronesInZones();
+                });
+                timer.setRepeats(false);
+                timer.start();
             }
 
             case DRONE_FAULT -> {
@@ -364,8 +369,11 @@ public class GUI extends JFrame {
 
     private void showDronesInZones() {
         Map<Integer, List<String>> occupantsByZone = new HashMap<>();
+        Map<Integer, Boolean> workingZone = new HashMap<>();
+
         for (Map.Entry<Integer, JLabel> entry : zoneInfoLabels.entrySet()) {
             occupantsByZone.put(entry.getKey(), new ArrayList<>());
+            workingZone.put(entry.getKey(), false);
         }
 
         for (DroneStatus st : drones.values()) {
@@ -373,11 +381,30 @@ public class GUI extends JFrame {
             if (droneZoneId == null) continue;
 
             switch (st.getState()) {
-                case EN_ROUTE, DROPPING, RETURNING, FAULTED, OFFLINE ->
-                        occupantsByZone.computeIfAbsent(droneZoneId, k -> new ArrayList<>())
-                                .add("Drone " + st.get_drone_id() + " - " + st.getState());
+                case EN_ROUTE, DROPPING, RETURNING, FAULTED, OFFLINE -> {
+                    occupantsByZone.computeIfAbsent(droneZoneId, k -> new ArrayList<>())
+                            .add("Drone " + st.get_drone_id() + " - " + st.getState());
+
+                    if (st.getState() == DroneState.EN_ROUTE
+                            || st.getState() == DroneState.DROPPING
+                            || st.getState() == DroneState.FAULTED) {
+                        workingZone.put(droneZoneId, true);
+                    }
+                }
                 default -> {
                 }
+            }
+        }
+
+        for (Integer zoneId : zonePanels.keySet()) {
+            JPanel p = zonePanels.get(zoneId);
+            if (p == null) continue;
+
+            if (zones.containsKey(zoneId)) {
+                updateZoneColor(zones.get(zoneId));
+            } else if (Boolean.TRUE.equals(workingZone.get(zoneId))) {
+                // Safety resync: if drones are still inbound/working, do not leave it green
+                p.setBackground(Color.YELLOW);
             }
         }
 
@@ -400,6 +427,8 @@ public class GUI extends JFrame {
         if (droneOverlay != null) {
             droneOverlay.setDrones(new ArrayList<>(drones.values()));
         }
+
+        repaint();
     }
 
     private void updateDroneRow(DroneStatus st) {
