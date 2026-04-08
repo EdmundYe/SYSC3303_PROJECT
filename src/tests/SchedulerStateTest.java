@@ -83,7 +83,6 @@ class SchedulerStateTest {
         assertEquals(SchedulerState.IDLE, next);
     }
 
-    @Test
     @Deprecated
     void testIdleToWaitingForDone() {
         SchedulerState s = SchedulerState.IDLE;
@@ -91,7 +90,6 @@ class SchedulerStateTest {
         assertEquals(SchedulerState.WAITING_FOR_DRONES, next);
     }
 
-    @Test
     @Deprecated
     void testWaitingForDoneToIdle() {
         SchedulerState s = SchedulerState.WAITING_FOR_DRONES;

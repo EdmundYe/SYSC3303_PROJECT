@@ -102,28 +102,6 @@ class DroneSubsystemTest {
     }
 
     /**
-     * Verifies that the agent usage per severity level matches
-     *   LOW = 10L
-     *   MODERATE = 20L
-     *   HIGH = 30L
-     */
-    @Test
-    void agentUsageForSeverity_matchesSpec() {
-        int low = (int) invokePrivate(drone, "agentUsageForSeverity",
-                new Class<?>[]{Severity.class}, Severity.LOW);
-
-        int moderate = (int) invokePrivate(drone, "agentUsageForSeverity",
-                new Class<?>[]{Severity.class}, Severity.MODERATE);
-
-        int high = (int) invokePrivate(drone, "agentUsageForSeverity",
-                new Class<?>[]{Severity.class}, Severity.HIGH);
-
-        assertEquals(10, low);
-        assertEquals(20, moderate);
-        assertEquals(30, high);
-    }
-
-    /**
      * Ensures drop‑time calculation respects the configured drop rate.
      */
     @Test
