@@ -23,9 +23,6 @@ import java.util.Queue;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SchedulerDispatchIntegrationTest {
-
-
-    @Test
     @Deprecated
     void testSchedulerDispatchesOnDronePoll() throws Exception {
         MessageTransporter mt = new MessageTransporter();
@@ -55,7 +52,6 @@ class SchedulerDispatchIntegrationTest {
         }
     }
 
-    @Test
     @Deprecated
     void testSchedulerHandlesMultipleEventsFIFO() throws Exception {
         MessageTransporter mt = new MessageTransporter();

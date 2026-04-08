@@ -102,14 +102,16 @@ class DroneSubsystemTest {
     }
 
     /**
-     * Ensures drop‑time calculation respects the configured drop rate.
+     * Ensures drop‑time calculation respects the configured drop rate
+     * and simulation speed.
      */
     @Test
     void computeDropTimeMs_respectsWaterDropRate() {
         long ms = (long) invokePrivate(drone, "computeDropTimeMs",
                 new Class<?>[]{int.class}, 10);
 
-        assertEquals(50_000L, ms);
+        // 10 litres → 834 ms under new formula
+        assertEquals(834L, ms);
     }
 
     /**
@@ -120,8 +122,10 @@ class DroneSubsystemTest {
         long ms = (long) invokePrivate(drone, "computeDropTimeMs",
                 new Class<?>[]{int.class}, 1);
 
-        assertEquals(5_000L, ms);
+        // 1 litre → 84 ms under new formula
+        assertEquals(84L, ms);
     }
+
 
     /**
      * Travel time for zero distance should always return at least 1 ms.
