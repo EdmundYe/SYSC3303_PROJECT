@@ -6,8 +6,15 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit tests for the DroneState finite‑state machine.
+ */
 class DroneStateTest {
 
+    /**
+     * Ensures that an IDLE drone transitions to EN_ROUTE when it receives
+     * a TASK_RECEIVED event.
+     */
     @Test
     void testIdleToEnRoute() {
         DroneState s = DroneState.IDLE;
@@ -15,6 +22,10 @@ class DroneStateTest {
         assertEquals(DroneState.EN_ROUTE, next);
     }
 
+    /**
+     * Ensures that an EN_ROUTE drone transitions to DROPPING when it receives
+     * an ARRIVED event.
+     */
     @Test
     void testEnRouteToDropping() {
         DroneState s = DroneState.EN_ROUTE;
@@ -22,6 +33,10 @@ class DroneStateTest {
         assertEquals(DroneState.DROPPING, next);
     }
 
+    /**
+     * Ensures that a DROPPING drone transitions to RETURNING when it receives
+     * a DROP_COMPLETE event.
+     */
     @Test
     void testDroppingToReturning() {
         DroneState s = DroneState.DROPPING;
@@ -29,6 +44,10 @@ class DroneStateTest {
         assertEquals(DroneState.RETURNING, next);
     }
 
+    /**
+     * Ensures that a RETURNING drone transitions to DONE when it receives
+     * a RETURN_COMPLETE event.
+     */
     @Test
     void testReturningToDone() {
         DroneState s = DroneState.RETURNING;
@@ -36,6 +55,11 @@ class DroneStateTest {
         assertEquals(DroneState.DONE, next);
     }
 
+    /**
+     * Verifies that a DONE drone transitions back to IDLE when it receives
+     * a TASK_RECEIVED event. According to the state machine, DONE always
+     * returns to IDLE regardless of the event.
+     */
     @Test
     void testDoneCyclesToIdle() {
         DroneState s = DroneState.DONE;
@@ -44,6 +68,10 @@ class DroneStateTest {
         assertEquals(DroneState.IDLE, next);
     }
 
+    /**
+     * Ensures that unrelated events do not change the drone's state.
+     * For example, an IDLE drone receiving an ARRIVED event should remain IDLE.
+     */
     @Test
     void testUnrelatedEventsKeepState() {
         DroneState s = DroneState.IDLE;

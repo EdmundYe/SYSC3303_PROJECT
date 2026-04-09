@@ -9,9 +9,15 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit tests for CSV fire‑event parsing
+ */
 class FireEventParseTest {
 
-    //FOR CHENWEI TO CHECK
+    /**
+     * Ensures that a well‑formed CSV line is parsed into a FireEvent with the
+     * correct timestamp, zone ID, event type, and severity.
+     */
     @Test
     void testParseCSVLine() {
         MessageTransporter mt = new MessageTransporter();
@@ -25,6 +31,10 @@ class FireEventParseTest {
         assertEquals(Severity.HIGH, fe.getSeverity());
     }
 
+    /**
+     * Verifies that the parser tolerates extra whitespace around CSV fields and
+     * still extracts the correct zone ID, event type, and severity.
+     */
     @Test
     void testParseCSVWhitespaceTolerance() {
         MessageTransporter mt = new MessageTransporter();

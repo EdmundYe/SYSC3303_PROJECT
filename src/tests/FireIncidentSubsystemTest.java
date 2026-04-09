@@ -206,44 +206,43 @@ class FireIncidentSubsystemTest {
         assertEquals(Severity.HIGH, testEvent.getSeverity());
     }
 
-//    /**
-//     * Tests how the scheduler and fire incident systems communicate
-//     * Expected result: Response contains print statements that confirm communication between both systems
-//     * @throws Exception
-//     */
-//    @Test
-//    @Deprecated
-//    void testRun() throws Exception{
-//        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-//        System.setOut(new PrintStream(buffer));
-//
-//        MessageTransporter testTransporter = new MessageTransporter();
-//        FireIncidentSubsystem testFireIncident = new FireIncidentSubsystem(testTransporter, "src/input.csv");
-//        Thread fireIncidentThread = new Thread(testFireIncident);
-//        int droneId = 1;
-//
-//        fireIncidentThread.start();
-//
-//        try{
-//            Message testMessage = assertTimeoutPreemptively(Duration.ofSeconds(1), () -> testTransporter.receive(SendAddress.SCHEDULER));
-//            assertEquals(MessageType.FIRE_EVENT, testMessage.getType());
-//
-//            FireEvent testEvent = (FireEvent) testMessage.getPayload();
-//            // check if test event exists, indicates that message is received from scheduler
-//            assertNotNull(testEvent);
-//
-//            testTransporter.send(SendAddress.FIRE_INCIDENT, Message.dronePoll(droneId));
-//
-//            Thread.sleep(500);
-//            String response = buffer.toString();
-//
-//            // check response from print stream buffer to see if responses line up with correct behaviour
-//            assertTrue(response.contains("[FIRE] Sent FIRE_EVENT to Scheduler"), "FIRE_EVENT was not sent to scheduler, test failed");
-//            assertTrue(response.contains("[FIRE] Received response: "), "scheduler did not receive message, test failed");
-//
-//        } finally {
-//            fireIncidentThread.interrupt();
-//            fireIncidentThread.join();
-//        }
-//    }
+    /**
+     * Tests how the scheduler and fire incident systems communicate
+     * Expected result: Response contains print statements that confirm communication between both systems
+     * @throws Exception
+     */
+    @Deprecated
+    void testRun() throws Exception{
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(buffer));
+
+        MessageTransporter testTransporter = new MessageTransporter();
+        FireIncidentSubsystem testFireIncident = new FireIncidentSubsystem(testTransporter, "src/input.csv");
+        Thread fireIncidentThread = new Thread(testFireIncident);
+        int droneId = 1;
+
+        fireIncidentThread.start();
+
+        try{
+            Message testMessage = assertTimeoutPreemptively(Duration.ofSeconds(1), () -> testTransporter.receive(SendAddress.SCHEDULER));
+            assertEquals(MessageType.FIRE_EVENT, testMessage.getType());
+
+            FireEvent testEvent = (FireEvent) testMessage.getPayload();
+            // check if test event exists, indicates that message is received from scheduler
+            assertNotNull(testEvent);
+
+            testTransporter.send(SendAddress.FIRE_INCIDENT, Message.dronePoll(droneId));
+
+            Thread.sleep(500);
+            String response = buffer.toString();
+
+            // check response from print stream buffer to see if responses line up with correct behaviour
+            assertTrue(response.contains("[FIRE] Sent FIRE_EVENT to Scheduler"), "FIRE_EVENT was not sent to scheduler, test failed");
+            assertTrue(response.contains("[FIRE] Received response: "), "scheduler did not receive message, test failed");
+
+        } finally {
+            fireIncidentThread.interrupt();
+            fireIncidentThread.join();
+        }
+    }
 }

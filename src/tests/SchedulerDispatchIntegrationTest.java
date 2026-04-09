@@ -22,6 +22,7 @@ import java.util.Queue;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+// Legacy Scheduler tests relying on MessageTransporter
 class SchedulerDispatchIntegrationTest {
     @Deprecated
     void testSchedulerDispatchesOnDronePoll() throws Exception {

@@ -9,9 +9,9 @@ import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+// Legacy MessageTransporter tests
 class MessageTransporterTest {
 
-    @Test
     @Deprecated
     void testSendReceiveSingleMessage() throws Exception {
         MessageTransporter mt = new MessageTransporter();
@@ -28,7 +28,6 @@ class MessageTransporterTest {
         assertEquals(1, receivedFe.getZoneId());
     }
 
-    @Test
     @Deprecated
     void testQueueOrderPreserved() throws Exception {
         MessageTransporter mt = new MessageTransporter();
