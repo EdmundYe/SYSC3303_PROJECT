@@ -7,6 +7,9 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+/*
+Legacy communication class that is now deprecated
+* */
 public final class MessageTransporter implements TransportUtility {
     private final Map<SendAddress, BlockingQueue<Message>> inboxes = new EnumMap<>(SendAddress.class);
 

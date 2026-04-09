@@ -198,6 +198,10 @@ public class ZoneMap {
         return new HashMap<>(BOUNDS);
     }
 
+    /**
+     * Returns true if the candidate zone lies close to the straight‑line path
+     * from the base (0,0) to the target zone, within a given perpendicular threshold.
+     */
     public static boolean isOnPath(int targetZone, int candidateZone, double thresholdMeters){
         ensureLoaded();
 
@@ -221,12 +225,18 @@ public class ZoneMap {
         return perpDist <= thresholdMeters;
     }
 
+    /**
+     * Computes Euclidean distance from the base (0,0) to the given zone.
+     */
     public static double distanceFromBase(int zoneId) {
         ensureLoaded();
         int[] z = get(zoneId);
         return Math.hypot(z[0], z[1]); // distance from (0,0) to zone center
     }
 
+    /**
+     * Returns a defensive copy of all zone coordinates.
+     */
     public static Map<Integer, int[]> getAllZones() {
         ensureLoaded();
         return new HashMap<>(COORDS);

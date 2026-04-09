@@ -143,6 +143,12 @@ public class FireIncidentSubsystem implements Runnable {
             System.out.println("[FIRE] No more events. Subsystem finished.");
     }
 
+    /**
+     * Waits until a FIRE_EVENT ACK is received from the scheduler.
+     * Ignores timeouts and continues listening. FIRE_OUT messages may
+     * arrive during this period and are processed to keep outstanding
+     * fire counts accurate.
+     */
     private void waitForAck() throws Exception {
         while (true) {
             byte[] buf = new byte[4096];
@@ -174,6 +180,11 @@ public class FireIncidentSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Waits once for a FIRE_OUT message. If none arrives before timeout,
+     * the method returns silently. Used to track completion of outstanding
+     * fire events without blocking indefinitely.
+     */
     private void waitForFireOut() throws Exception {
         byte[] buf = new byte[4096];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);

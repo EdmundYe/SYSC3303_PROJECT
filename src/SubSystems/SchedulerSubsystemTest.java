@@ -26,15 +26,17 @@ class SchedulerSubsystemTest {
 
     private SchedulerSubsystem scheduler;
 
+    // Use constructor without GUI to keep tests lightweight
     @BeforeEach
     void setUp() {
-        // Use constructor without GUI to keep tests lightweight
+
         scheduler = new SchedulerSubsystem(new MessageTransporter(), null);
     }
 
+    // Close scheduler sockets to avoid port conflicts between tests
     @AfterEach
     void tearDown() {
-        // Close scheduler sockets to avoid port conflicts between tests
+
         try {
             Field recvField = SchedulerSubsystem.class.getDeclaredField("receiveSocket");
             Field sendField = SchedulerSubsystem.class.getDeclaredField("sendSocket");

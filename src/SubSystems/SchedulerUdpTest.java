@@ -28,6 +28,11 @@ class SchedulerUdpTest {
 
     private FireIncidentSubsystem fireParser;
 
+    /**
+     * Initializes a fresh scheduler instance, creates mock UDP sockets for
+     * drones and the fire subsystem, and prepares a FireIncidentSubsystem
+     * for parsing CSV fire lines.
+     */
     @BeforeEach
     void setUp() throws Exception {
         counts = new SystemCounts();
@@ -47,6 +52,9 @@ class SchedulerUdpTest {
         fireParser = new FireIncidentSubsystem("input.csv");
     }
 
+    /**
+     * Closes all sockets created during the test to avoid port leaks.
+     */
     @AfterEach
     void tearDown() {
         closeQuietly(fireSocket);
@@ -60,6 +68,12 @@ class SchedulerUdpTest {
         }
     }
 
+    /**
+     * Verifies that the scheduler dispatches the first three fire events to
+     * three registered drones and leaves the fourth event pending. Also checks
+     * that DRONE_TASK messages are sent and that scheduler state transitions
+     * to WAITING_FOR_DRONES.
+     */
     @Test
     void dispatchesFirstThreeEventsToThreeRegisteredDronesAndLeavesFourthPending() throws Exception {
         registerDrone(1, drone1Socket);
@@ -118,6 +132,9 @@ class SchedulerUdpTest {
         assertEquals(SchedulerState.WAITING_FOR_DRONES, getSchedulerState());
     }
 
+    /**
+     * Ensures that when a drone completes its task (DRONE_DONE), the scheduler:
+     * */
     @Test
     void dispatchesPendingEventWhenDroneReportsDone_newScheduler() throws Exception {
         // Register 3 drones
@@ -177,6 +194,11 @@ class SchedulerUdpTest {
     }
 
 
+    /**
+     * Confirms that DRONE_STATUS messages correctly update the scheduler’s
+     * internal DroneInfo record, including state, zone, agent level, and
+     * dispatchability flags.
+     */
     @Test
     void schedulerDroneStatusCheck() throws Exception {
         registerDrone(1, drone1Socket);
@@ -198,6 +220,10 @@ class SchedulerUdpTest {
         assertFalse(drone.isDispatchable());
     }
 
+    /**
+     * Verifies that the scheduler sends a FIRE_EVENT ACK for each incoming
+     * fire event received from the fire subsystem.
+     */
     @Test
     void sendsFireAckIncomingFireEvent() throws Exception {
         registerDrone(1, drone1Socket);
@@ -212,6 +238,13 @@ class SchedulerUdpTest {
         assertFireAck(ack2);
     }
 
+    /**
+     * Simulates a drone sending a DRONE_POLL message to register itself with
+     * the scheduler and establish its UDP return address.
+     *
+     * @param droneId     the drone identifier
+     * @param droneSocket the socket representing the drone
+     */
     private void registerDrone(int droneId, DatagramSocket droneSocket) throws Exception {
         scheduler.handle(
                 Message.dronePoll(droneId),
@@ -220,6 +253,12 @@ class SchedulerUdpTest {
         );
     }
 
+    /**
+     * Parses a CSV fire-event line and sends it to the scheduler as a FIRE_EVENT
+     * message from the fire subsystem.
+     *
+     * @param line CSV-formatted fire event
+     */
     private void sendFireLine(String line) throws Exception {
         FireEvent event = fireParser.parseCSVLine(line);
         scheduler.handle(
@@ -229,6 +268,13 @@ class SchedulerUdpTest {
         );
     }
 
+    /**
+     * Receives a single UDP message from the given socket, failing the test
+     * if no packet arrives before the socket timeout.
+     *
+     * @param socket the socket to read from
+     * @return decoded Message object
+     */
     private Message receiveMessage(DatagramSocket socket) throws Exception {
         byte[] buf = new byte[4096];
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
@@ -243,11 +289,22 @@ class SchedulerUdpTest {
         return Message.fromBytes(data);
     }
 
+    /**
+     * Asserts that the given message is a FIRE_EVENT ACK (type FIRE_EVENT with
+     * a null payload).
+     *
+     * @param msg the message to validate
+     */
     private void assertFireAck(Message msg) {
         assertEquals(MessageType.FIRE_EVENT, msg.getType());
         assertNull(msg.getPayload());
     }
 
+    /**
+     * Returns the scheduler's pending event queue via reflection.
+     *
+     * @return the pendingEvents queue
+     */
     @SuppressWarnings("unchecked")
     private Queue<FireEvent> getPendingQueue() throws Exception {
         Field f = SchedulerSubsystem.class.getDeclaredField("pendingEvents");
@@ -255,10 +312,18 @@ class SchedulerUdpTest {
         return (Queue<FireEvent>) f.get(scheduler);
     }
 
+    /**
+     * Returns the number of pending fire events.
+     */
     private int getPendingQueueSize() throws Exception {
         return getPendingQueue().size();
     }
 
+    /**
+     * Returns the scheduler's internal drone map via reflection.
+     *
+     * @return map of droneId → DroneInfo
+     */
     @SuppressWarnings("unchecked")
     private Map<Integer, DroneInfo> getDroneMap() throws Exception {
         Field f = SchedulerSubsystem.class.getDeclaredField("drones");
@@ -266,12 +331,22 @@ class SchedulerUdpTest {
         return (Map<Integer, DroneInfo>) f.get(scheduler);
     }
 
+    /**
+     * Returns the scheduler's current state via reflection.
+     *
+     * @return the SchedulerState value
+     */
     private SchedulerState getSchedulerState() throws Exception {
         Field f = SchedulerSubsystem.class.getDeclaredField("schedulerState");
         f.setAccessible(true);
         return (SchedulerState) f.get(scheduler);
     }
 
+    /**
+     * Safely closes a DatagramSocket without throwing exceptions.
+     *
+     * @param socket the socket to close
+     */
     private void closeQuietly(DatagramSocket socket) {
         if (socket != null && !socket.isClosed()) {
             socket.close();

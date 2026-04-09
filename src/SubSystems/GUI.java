@@ -37,6 +37,10 @@ public class GUI extends JFrame {
 
     private GlobalDroneCanvas droneOverlay;
 
+    /**
+     * Builds and initializes the main GUI for the Automated Drone Fire Response System.
+     * @param counts optional system‑wide counters used for drone totals and metrics
+     */
     public GUI(SystemCounts counts) {
         setTitle("Automated Drone Fire Response System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -217,6 +221,14 @@ public class GUI extends JFrame {
         });
     }
 
+    /**
+     * Computes the number of drones currently busy based on their last known
+     * DroneStatus values. Used when SystemCounts is unavailable.
+     *
+     * <p>Busy states include: EN_ROUTE, DROPPING, RETURNING, and FAULTED.
+     *
+     * @return number of drones considered busy
+     */
     private int calculateBusyDronesFallback() {
         int busy = 0;
         for (DroneStatus st : drones.values()) {
@@ -230,6 +242,12 @@ public class GUI extends JFrame {
         return busy;
     }
 
+    /**
+     * Creates a JLabel with bold text, used for table and sidebar headers.
+     *
+     * @param text label text
+     * @return a left‑aligned bold JLabel
+     */
     private JLabel boldLabel(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
@@ -237,6 +255,13 @@ public class GUI extends JFrame {
         return label;
     }
 
+    /**
+     * Adds a new drone‑status row to the sidebar if one does not already exist
+     * for the given drone ID. Each row displays state, position, agent level,
+     * battery level, and assigned zone.
+     *
+     * @param id drone identifier
+     */
     private void addDroneRowIfMissing(int id) {
         if (droneState.containsKey(id)) {
             return;
@@ -279,6 +304,19 @@ public class GUI extends JFrame {
         dronePanel.repaint();
     }
 
+    /**
+     * Recomputes and updates the pixel‑space positions of all zone wrapper panels
+     * whenever the map panel is resized. Converts world‑space zone bounds into
+     * normalized coordinates and scales them into the available pixel area.
+     *
+     * @param mapPanel       the layered map panel containing all zone wrappers
+     * @param allZoneBounds  world‑space bounds for each zone
+     * @param minX           minimum world X coordinate
+     * @param minY           minimum world Y coordinate
+     * @param maxX           maximum world X coordinate
+     * @param maxY           maximum world Y coordinate
+     * @param pad            pixel padding around the map
+     */
     private void repositionZoneWrappers(JLayeredPane mapPanel, Map<Integer, int[]> allZoneBounds,
                                         double minX, double minY, double maxX, double maxY, int pad) {
         int mapPixelW = Math.max(100, mapPanel.getWidth());
@@ -319,6 +357,13 @@ public class GUI extends JFrame {
         }
     }
 
+    /**
+     * Processes an incoming message from the scheduler or drones and updates
+     * the GUI accordingly. Handles drone status updates, fire events, fire-out
+     * notifications, and fault reports.
+     *
+     * @param msg the incoming message to process
+     */
     public void handleIncomingMessage(Message msg) {
         switch (msg.getType()) {
             case DRONE_STATUS, DRONE_DONE -> {
@@ -367,6 +412,11 @@ public class GUI extends JFrame {
         repaint();
     }
 
+    /**
+     * Updates zone panels and zone info labels to reflect current drone activity.
+     * Shows which drones are present in each zone and highlights zones where
+     * drones are actively working or faults occurred.
+     */
     private void showDronesInZones() {
         Map<Integer, List<String>> occupantsByZone = new HashMap<>();
         Map<Integer, Boolean> workingZone = new HashMap<>();
@@ -431,6 +481,12 @@ public class GUI extends JFrame {
         repaint();
     }
 
+    /**
+     * Updates the sidebar row for a specific drone with its latest status,
+     * including state, position, agent level, battery level, and assigned zone.
+     *
+     * @param st the latest DroneStatus for the drone
+     */
     private void updateDroneRow(DroneStatus st) {
         int id = st.get_drone_id();
         addDroneRowIfMissing(id);
@@ -474,6 +530,13 @@ public class GUI extends JFrame {
         }
     }
 
+    /**
+     * Updates the background color of a zone panel based on the severity
+     * of an active fire event. High severity = red, moderate = orange,
+     * low = yellow.
+     *
+     * @param ev the fire event whose severity determines the zone color
+     */
     private void updateZoneColor(FireEvent ev) {
         JPanel p = zonePanels.get(ev.getZoneId());
         if (p == null) return;
@@ -487,6 +550,12 @@ public class GUI extends JFrame {
         p.repaint();
     }
 
+    /**
+     * Marks a zone as extinguished by setting its background to green
+     * and updating its info label. Called after a FIRE_OUT event.
+     *
+     * @param ev the fire event identifying which zone was extinguished
+     */
     private void markZoneExtinguished(FireEvent ev) {
         JPanel p = zonePanels.get(ev.getZoneId());
         if (p != null) {
@@ -514,6 +583,14 @@ public class GUI extends JFrame {
         private static final double CLUSTER_DISTANCE_PX = 18.0; // how close before we separate visually
         private static final double SPREAD_RADIUS_PX = 14.0;    // how far apart clustered drones appear
 
+        /**
+         * Creates a new global drone overlay using the world‑space bounds of the map.
+         *
+         * @param minX minimum world X coordinate
+         * @param minY minimum world Y coordinate
+         * @param maxX maximum world X coordinate
+         * @param maxY maximum world Y coordinate
+         */
         GlobalDroneCanvas(double minX, double minY, double maxX, double maxY) {
             this.minX = minX;
             this.minY = minY;
@@ -522,6 +599,11 @@ public class GUI extends JFrame {
             setOpaque(false);
         }
 
+        /**
+         * Replaces the current drone list and triggers a repaint.
+         *
+         * @param dronesList list of latest drone statuses
+         */
         void setDrones(List<DroneStatus> dronesList) {
             drones.clear();
             for (DroneStatus st : dronesList) {
@@ -530,6 +612,15 @@ public class GUI extends JFrame {
             repaint();
         }
 
+        /**
+         * Converts world‑space coordinates (meters) into canvas pixel coordinates.
+         *
+         * @param wx world X coordinate
+         * @param wy world Y coordinate
+         * @param w  canvas width
+         * @param h  canvas height
+         * @return pixel‑space point corresponding to the world coordinate
+         */
         private Point2D.Double worldToCanvas(double wx, double wy, int w, int h) {
             double pad = 8.0;
             double availW = Math.max(10, w - 2 * pad);
@@ -546,6 +637,10 @@ public class GUI extends JFrame {
             return new Point2D.Double(cx, cy);
         }
 
+        /**
+         * Holds drawing information for a single drone, including its base
+         * world‑to‑canvas point and its final adjusted draw point.
+         */
         private static class DrawInfo {
             final DroneStatus status;
             final Point2D.Double basePoint;
@@ -558,6 +653,13 @@ public class GUI extends JFrame {
             }
         }
 
+        /**
+         * Groups drones into clusters when their base draw points are within
+         * {@code CLUSTER_DISTANCE_PX} of each other.
+         *
+         * @param points list of drone draw info objects
+         * @return list of clusters, each cluster containing one or more drones
+         */
         private List<List<DrawInfo>> clusterCloseDrones(List<DrawInfo> points) {
             List<List<DrawInfo>> clusters = new ArrayList<>();
             boolean[] used = new boolean[points.size()];
@@ -596,6 +698,13 @@ public class GUI extends JFrame {
             return clusters;
         }
 
+        /**
+         * Applies visual offsets to clustered drones so they do not overlap.
+         * Drones in the same cluster are arranged in a circular pattern around
+         * the cluster center using {@code SPREAD_RADIUS_PX}.
+         *
+         * @param infos list of drone draw info objects to adjust
+         */
         private void applyVisualOffsets(List<DrawInfo> infos) {
             List<List<DrawInfo>> clusters = clusterCloseDrones(infos);
 
@@ -626,6 +735,14 @@ public class GUI extends JFrame {
             }
         }
 
+        /**
+         * Renders all drones on the global overlay layer. Converts each drone's
+         * world‑space position into canvas coordinates, applies visual offsets
+         * for clustered drones, and draws the drone marker, label, and optional
+         * offset line. Also draws the launch base at world coordinate (0,0).
+         *
+         * @param g the graphics context used for drawing
+         */
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -717,6 +834,16 @@ public class GUI extends JFrame {
             setOpaque(false);
         }
 
+        /**
+         * Converts world‑space coordinates into canvas pixel coordinates
+         * relative to this zone’s bounding box.
+         *
+         * @param wx world X coordinate
+         * @param wy world Y coordinate
+         * @param w  canvas width
+         * @param h  canvas height
+         * @return pixel‑space point corresponding to the world coordinate
+         */
         private Point2D.Double worldToCanvas(double wx, double wy, int w, int h) {
             double pad = 8.0;
             double availW = Math.max(10, w - 2 * pad);
@@ -733,6 +860,14 @@ public class GUI extends JFrame {
             return new Point2D.Double(cx, cy);
         }
 
+        /**
+         * Renders the visual bounding box of a zone. Converts the zone's world‑space
+         * rectangle into canvas coordinates and draws a semi‑transparent fill with
+         * a colored border. Drones are not drawn here; they are rendered by the
+         * GlobalDroneCanvas overlay.
+         *
+         * @param g the graphics context used for drawing
+         */
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);

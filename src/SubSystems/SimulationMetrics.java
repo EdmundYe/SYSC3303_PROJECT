@@ -17,6 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
+/**
+ * Collects and computes performance metrics for the fire‑response simulation.
+ */
 public class SimulationMetrics {
 
     // Keep this aligned with the simulation speed used by your drone subsystem.
@@ -31,6 +34,9 @@ public class SimulationMetrics {
         Long firstArrivalAtMs;
         Long completedAtMs;
 
+        /**
+         * Tracks timing information for a single fire event
+         * */
         EventMetric(String key, int zoneId, Severity severity, long createdAtMs) {
             this.key = key;
             this.zoneId = zoneId;
@@ -38,27 +44,46 @@ public class SimulationMetrics {
             this.createdAtMs = createdAtMs;
         }
 
+        /**
+         * Returns the wall‑clock time from event creation to first drone arrival.
+         *
+         * @return response time in ms, or -1 if no arrival recorded
+         */
         long responseTimeWallMs() {
             if (firstArrivalAtMs == null) return -1L;
             return Math.max(0L, firstArrivalAtMs - createdAtMs);
         }
 
+        /**
+         * Returns the wall‑clock time from event creation to completion.
+         *
+         * @return completion time in ms, or -1 if not completed
+         */
         long completionTimeWallMs() {
             if (completedAtMs == null) return -1L;
             return Math.max(0L, completedAtMs - createdAtMs);
         }
 
+        /**
+         * Returns the simulated response time (scaled by simulation speed).
+         */
         double responseTimeSimMs() {
             long v = responseTimeWallMs();
             return v < 0 ? -1.0 : v * DRONE_SIMULATION_SPEED;
         }
 
+        /**
+         * Returns the simulated completion time (scaled by simulation speed).
+         */
         double completionTimeSimMs() {
             long v = completionTimeWallMs();
             return v < 0 ? -1.0 : v * DRONE_SIMULATION_SPEED;
         }
     }
 
+    /**
+     * Tracks per‑drone metrics
+     */
     private static final class DroneMetric {
         final int droneId;
         final EnumMap<DroneState, Long> stateTimeMs = new EnumMap<>(DroneState.class);
@@ -80,6 +105,13 @@ public class SimulationMetrics {
             }
         }
 
+        /**
+         * Records a transition from the previous state to a new state and updates
+         * accumulated wall‑clock time spent in the old state.
+         *
+         * @param newState the new drone state
+         * @param nowMs    timestamp of the transition
+         */
         void recordStateTransition(DroneState newState, long nowMs) {
             long delta = Math.max(0L, nowMs - lastStateChangeMs);
             stateTimeMs.put(lastState, stateTimeMs.getOrDefault(lastState, 0L) + delta);
@@ -87,6 +119,12 @@ public class SimulationMetrics {
             lastStateChangeMs = nowMs;
         }
 
+        /**
+         * Updates the drone's tracked position and accumulates distance traveled.
+         *
+         * @param x new X coordinate
+         * @param y new Y coordinate
+         */
         void recordPosition(double x, double y) {
             if (lastX != null && lastY != null) {
                 totalDistanceMeters += Math.hypot(x - lastX, y - lastY);
@@ -95,24 +133,39 @@ public class SimulationMetrics {
             lastY = y;
         }
 
+        /**
+         * Returns wall‑clock time spent in the given state.
+         */
         long getStateTimeWallMs(DroneState state) {
             return stateTimeMs.getOrDefault(state, 0L);
         }
 
+        /**
+         * Returns simulated time spent in the given state.
+         */
         double getStateTimeSimMs(DroneState state) {
             return getStateTimeWallMs(state) * DRONE_SIMULATION_SPEED;
         }
 
+        /**
+         * Returns total simulated time spent in active states (EN_ROUTE, DROPPING, RETURNING).
+         */
         double getActiveTimeSimMs() {
             return getStateTimeSimMs(DroneState.EN_ROUTE)
                     + getStateTimeSimMs(DroneState.DROPPING)
                     + getStateTimeSimMs(DroneState.RETURNING);
         }
 
+        /**
+         * Returns total simulated idle time.
+         */
         double getIdleTimeSimMs() {
             return getStateTimeSimMs(DroneState.IDLE);
         }
 
+        /**
+         * Returns total simulated time tracked across all states.
+         */
         double getTrackedTimeSimMs() {
             double total = 0.0;
             for (DroneState state : DroneState.values()) {
@@ -121,6 +174,9 @@ public class SimulationMetrics {
             return total;
         }
 
+        /**
+         * Returns drone utilization as a percentage of active time vs. total tracked time.
+         */
         double getUtilizationPercent() {
             double tracked = getTrackedTimeSimMs();
             if (tracked <= 0.0) return 0.0;
@@ -138,16 +194,33 @@ public class SimulationMetrics {
 
     private boolean finalReportPrinted = false;
 
+    /**
+     * Ensures a DroneMetric entry exists for the given drone ID.
+     *
+     * @param droneId the drone to register
+     */
     public synchronized void registerDrone(int droneId) {
         drones.computeIfAbsent(droneId, DroneMetric::new);
     }
 
+    /**
+     * Registers a contiguous range of drone IDs from 1 to totalDrones.
+     *
+     * @param totalDrones number of drones to register
+     */
     public synchronized void registerDroneRange(int totalDrones) {
         for (int i = 1; i <= totalDrones; i++) {
             registerDrone(i);
         }
     }
 
+    /**
+     * Records the detection of a new fire event, creating a new EventMetric and
+     * marking the zone as active. Also records the timestamp of the first event
+     * detected in the simulation.
+     *
+     * @param event the detected fire event
+     */
     public synchronized void recordFireDetected(FireEvent event) {
         long now = System.currentTimeMillis();
 
@@ -161,6 +234,12 @@ public class SimulationMetrics {
         activeEventKeyByZone.put(event.getZoneId(), key);
     }
 
+    /**
+     * Records completion of a fire event. Updates the corresponding EventMetric
+     * with a completion timestamp and clears the zone from active tracking.
+     *
+     * @param event the extinguished fire event
+     */
     public synchronized void recordFireOut(FireEvent event) {
         long now = System.currentTimeMillis();
         String key = buildEventKey(event);
@@ -179,6 +258,10 @@ public class SimulationMetrics {
         lastFireOutMs = now;
     }
 
+    /**
+     * Updates metrics based on a drone's latest status
+     * @param status the drone's reported status
+     */
     public synchronized void recordDroneStatus(DroneStatus status) {
         DroneMetric dm = drones.computeIfAbsent(status.get_drone_id(), DroneMetric::new);
         long now = status.get_status_time_ms();
@@ -200,16 +283,33 @@ public class SimulationMetrics {
         }
     }
 
+    /**
+     * Records that a drone has successfully completed a mission. Increments the
+     * drone's completed‑mission counter. Creates a DroneMetric entry if needed.
+     *
+     * @param droneId the drone that completed a mission
+     */
     public synchronized void recordDroneDone(int droneId) {
         DroneMetric dm = drones.computeIfAbsent(droneId, DroneMetric::new);
         dm.completedMissions++;
     }
 
+    /**
+     * Records that a drone has reported a fault. Increments the drone's fault
+     * counter. Creates a DroneMetric entry if needed.
+     *
+     * @param droneId the drone that experienced a fault
+     */
     public synchronized void recordDroneFault(int droneId) {
         DroneMetric dm = drones.computeIfAbsent(droneId, DroneMetric::new);
         dm.faultCount++;
     }
 
+    /**
+     * Finalizes state‑time accounting for all drones by closing out the time
+     * spent in their current state up to the present moment. This is called
+     * before generating the final report to ensure all durations are accurate.
+     */
     public synchronized void flushOpenStateTimes() {
         long now = System.currentTimeMillis();
         for (DroneMetric dm : drones.values()) {
@@ -219,6 +319,14 @@ public class SimulationMetrics {
         }
     }
 
+    /**
+     * Determines whether the simulation has reached a terminal state and the
+     * final metrics report should be printed.
+     * @param noPendingEvents true if the scheduler has no queued events
+     * @param noBusyDrones    true if all drones are idle or offline
+     * @param activeFires     number of active fires remaining
+     * @return true if the final report should be printed
+     */
     public synchronized boolean shouldPrintFinalReport(boolean noPendingEvents, boolean noBusyDrones, int activeFires) {
         return !finalReportPrinted
                 && firstEventDetectedMs >= 0
@@ -227,6 +335,11 @@ public class SimulationMetrics {
                 && activeFires == 0;
     }
 
+    /**
+     * Generates and prints the final simulation metrics report. Ensures the
+     * report is printed only once, flushes all open state times, builds the
+     * report lines, prints them to stdout, and writes them to a file.
+     */
     public synchronized void printFinalReport() {
         if (finalReportPrinted) return;
         finalReportPrinted = true;
@@ -240,6 +353,10 @@ public class SimulationMetrics {
         writeReportToFile(lines);
     }
 
+    /**
+     * Constructs a human‑readable multi‑section metrics report summary
+     * @return a list of formatted report lines
+     */
     private List<String> buildReportLines() {
         List<String> lines = new ArrayList<>();
 
@@ -343,6 +460,12 @@ public class SimulationMetrics {
         return lines;
     }
 
+    /**
+     * Writes the metrics report to a file named {@code metrics_report.txt}.
+     * Overwrites any existing file. Logs success or failure to stdout.
+     *
+     * @param lines the report content to write
+     */
     private void writeReportToFile(List<String> lines) {
         Path outputPath = Path.of("metrics_report.txt");
         try {
@@ -359,12 +482,25 @@ public class SimulationMetrics {
         }
     }
 
+    /**
+     * Returns the active EventMetric associated with the given zone, if any.
+     *
+     * @param zoneId the zone to look up
+     * @return the active EventMetric, or null if none exists
+     */
     private EventMetric activeEventByZone(int zoneId) {
         String key = activeEventKeyByZone.get(zoneId);
         if (key == null) return null;
         return eventsByKey.get(key);
     }
 
+    /**
+     * Builds a unique key for a fire event based on timestamp, zone, event type,
+     * and severity. Used to correlate FIRE_EVENT and FIRE_OUT messages.
+     *
+     * @param event the fire event to key
+     * @return a unique string key representing the event
+     */
     private String buildEventKey(FireEvent event) {
         Instant ts = event.getTimestamp();
         long millis = ts != null ? ts.toEpochMilli() : -1L;

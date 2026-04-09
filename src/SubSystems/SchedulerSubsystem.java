@@ -8,6 +8,7 @@ import java.net.*;
 import java.io.*;
 import java.util.*;
 
+// Scheduler for the Automated Drone Fire Response System
 public class SchedulerSubsystem implements Runnable {
 
     private MessageTransporter transport;
@@ -37,6 +38,12 @@ public class SchedulerSubsystem implements Runnable {
 
     private GUI gui;
 
+    /**
+     * Creates a scheduler with real UDP sockets and launches the GUI.
+     * Also initializes metrics and registers the expected drone count.
+     *
+     * @param counts shared system counters for tracking active fires and drones
+     */
     public SchedulerSubsystem(SystemCounts counts) {
         try {
             this.receiveSocket = new DatagramSocket(SCHEDULER_PORT);
@@ -75,6 +82,13 @@ public class SchedulerSubsystem implements Runnable {
 
     }
 
+    /**
+     * Creates a scheduler using a custom message transporter (typically for tests)
+     * and initializes UDP sockets. Does not start the GUI.
+     *
+     * @param transport message transport abstraction
+     * @param counts    shared system counters
+     */
     public SchedulerSubsystem(MessageTransporter transport, SystemCounts counts) {
         try {
             receiveSocket = new DatagramSocket(SCHEDULER_PORT);
@@ -86,6 +100,12 @@ public class SchedulerSubsystem implements Runnable {
         this.transport = transport;
     }
 
+    /**
+     * Creates a scheduler using a custom message transporter without system counters.
+     * Intended for testing or headless operation.
+     *
+     * @param transport message transport abstraction
+     */
     public SchedulerSubsystem(MessageTransporter transport) {
         try {
             receiveSocket = new DatagramSocket(SCHEDULER_PORT);
@@ -127,6 +147,13 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Routes an incoming message to the appropriate handler based on its type.
+     *
+     * @param msg     the decoded message
+     * @param address sender IP address
+     * @param port    sender UDP port
+     */
     void handle(Message msg, InetAddress address, int port) {
         switch (msg.getType()) {
             case FIRE_EVENT -> handleFireEvent(msg, address, port);
@@ -141,6 +168,13 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Processes a FIRE_EVENT from the fire‑incident subsystem.
+     *
+     * @param msg     the FIRE_EVENT message
+     * @param address sender IP address
+     * @param port    sender UDP port
+     */
     private void handleFireEvent(Message msg, InetAddress address, int port) {
         FireEvent event = (FireEvent) msg.getPayload();
 
@@ -169,6 +203,15 @@ public class SchedulerSubsystem implements Runnable {
         refreshSchedulerState();
     }
 
+    /**
+     * Handles a DRONE_POLL message from a drone. Registers the drone if new,
+     * updates its endpoint, marks it available if idle, and attempts to dispatch
+     * pending fire events.
+     *
+     * @param msg     the DRONE_POLL message
+     * @param address drone IP address
+     * @param port    drone UDP port
+     */
     private void handleDronePoll(Message msg, InetAddress address, int port) {
         int droneId = (int) msg.getPayload();
         metrics.registerDrone(droneId);
@@ -189,6 +232,14 @@ public class SchedulerSubsystem implements Runnable {
         refreshSchedulerState();
     }
 
+    /**
+     * Processes a DRONE_STATUS update. Updates the drone's last known state,
+     * records metrics, forwards the update to the GUI, and refreshes scheduler state.
+     *
+     * @param msg     the DRONE_STATUS message
+     * @param address drone IP address
+     * @param port    drone UDP port
+     */
     private void handleDroneStatus(Message msg, InetAddress address, int port) {
         DroneStatus status = (DroneStatus) msg.getPayload();
         int droneId = msg.get_source_id();
@@ -206,6 +257,15 @@ public class SchedulerSubsystem implements Runnable {
         refreshSchedulerState();
     }
 
+    /**
+     * Handles a DRONE_DONE message indicating a drone has completed its mission.
+     * Updates drone state, metrics, GUI, and fire‑zone tracking. If the last drone
+     * assigned to a zone finishes, the scheduler emits a FIRE_OUT notification.
+     *
+     * @param msg     the DRONE_DONE message
+     * @param address drone IP address
+     * @param port    drone UDP port
+     */
     private void handleDroneDone(Message msg, InetAddress address, int port) {
         DroneStatus status = (DroneStatus) msg.getPayload();
         int droneId = msg.get_source_id();
@@ -244,6 +304,16 @@ public class SchedulerSubsystem implements Runnable {
         refreshSchedulerState();
     }
 
+    /**
+     * Handles a DRONE_FAULT message from a drone. Updates metrics, clears the
+     * drone’s assignment, adjusts zone‑level active‑drone counts, and requeues
+     * the fire event if necessary. Marks the drone either OFFLINE (hard fault)
+     * or temporarily FAULTED (recoverable fault).
+     *
+     * @param msg     the DRONE_FAULT message
+     * @param address drone IP address
+     * @param port    drone UDP port
+     */
     private void handleDroneFault(Message msg, InetAddress address, int port) {
         DroneFault fault = (DroneFault) msg.getPayload();
         int droneId = msg.get_source_id();
@@ -309,6 +379,14 @@ public class SchedulerSubsystem implements Runnable {
         refreshSchedulerState();
     }
 
+    /**
+     * Retrieves an existing DroneInfo entry or creates a new one if the drone
+     * has not been seen before. Newly created drones are initialized with
+     * default agent capacity and full battery.
+     *
+     * @param droneId the drone identifier
+     * @return the DroneInfo object for the drone
+     */
     private DroneInfo getOrCreateDrone(int droneId) {
         DroneInfo drone = drones.get(droneId);
         if (drone == null) {
@@ -323,11 +401,22 @@ public class SchedulerSubsystem implements Runnable {
         return drone;
     }
 
+    /**
+     * Updates the network endpoint (IP address and UDP port) where the scheduler
+     * should send messages to reach the specified drone.
+     *
+     * @param drone   the drone whose endpoint is being updated
+     * @param address the drone’s IP address
+     * @param port    the drone’s UDP port
+     */
     private void updateDroneEndpoint(DroneInfo drone, InetAddress address, int port) {
         drone.setListenAddress(address);
         drone.setListenPort(port);
     }
 
+    /**
+     * Attempts to dispatch pending fire events to available drones.
+     */
     private void tryDispatchIfPossible() {
         reconcileZoneState();
         refreshSchedulerState();
@@ -388,6 +477,13 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Attempts to find a busy drone that can be redirected to the given fire event
+     * without significant detour.
+     *
+     * @param event the new fire event to evaluate
+     * @return the best redirect candidate, or null if none qualify
+     */
     private DroneInfo findPassThroughDrone(FireEvent event) {
         int requestedZone = event.getZoneId();
         DroneInfo best = null;
@@ -414,6 +510,14 @@ public class SchedulerSubsystem implements Runnable {
         return best;
     }
 
+    /**
+     * Selects the best idle drone to dispatch to a fire event. A drone qualifies if:
+     *
+     * @param event        the fire event requiring dispatch
+     * @param excludedIds  drones already selected for this event
+     * @param dronesNeeded number of drones required for the event
+     * @return the best idle drone, or null if none qualify
+     */
     private DroneInfo findBestIdleDroneForEvent(FireEvent event, Set<Integer> excludedIds, int dronesNeeded) {
         int requestedZone = event.getZoneId();
         int requiredAgent = (int) Math.ceil(
@@ -436,6 +540,15 @@ public class SchedulerSubsystem implements Runnable {
         return best;
     }
 
+    /**
+     * Redirects a busy drone from its current assignment to a new fire event.
+     * Updates zone‑level active‑drone counts, requeues the old event if needed,
+     * marks the drone busy with the new event, and sends a new DISPATCH command
+     * to the drone.
+     *
+     * @param drone    the drone being redirected
+     * @param newEvent the new fire event to assign
+     */
     private void redirect(DroneInfo drone, FireEvent newEvent) {
         FireEvent oldEvent = drone.assignedEvent;
 
@@ -487,6 +600,14 @@ public class SchedulerSubsystem implements Runnable {
                 + " from zone " + oldZone + " -> zone " + newEvent.getZoneId());
     }
 
+    /**
+     * Dispatches a single drone to a fire event. Marks the drone busy, ensures
+     * it has agent capacity, updates zone state, and sends a DISPATCH command
+     * to the drone. Also forwards the event to the GUI.
+     *
+     * @param drone the drone to dispatch
+     * @param event the fire event requiring response
+     */
     private void dispatch(DroneInfo drone, FireEvent event) {
         drone.markBusy(event);
         if (drone.remainingAgent == null) {
@@ -532,6 +653,14 @@ public class SchedulerSubsystem implements Runnable {
                     + ", fault=" + event.getFaultType() + ")");
     }
 
+    /**
+     * Dispatches multiple drones to a fire event. Splits the required agent
+     * amount evenly across all drones, marks each drone busy, updates zone
+     * state, and sends a DISPATCH command to each drone.
+     *
+     * @param listOfDrones the drones assigned to the event
+     * @param event        the fire event requiring response
+     */
     private void dispatchMultiple(List<DroneInfo> listOfDrones, FireEvent event) {
         int totalAgent = event.getSeverity().requiredAgentLitres();
         int agentPerDrone = (int) Math.ceil((double) totalAgent / listOfDrones.size());
@@ -582,6 +711,10 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Rebuilds the active zone state by scanning all drones and determining
+     * which zones currently have assigned drones.
+     */
     private void reconcileZoneState() {
         activeZones.clear();
         zoneActiveDroneCount.clear();
@@ -595,10 +728,23 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Returns whether the given zone currently has one or more drones assigned.
+     *
+     * @param zoneId the zone to check
+     * @return true if the zone is active, false otherwise
+     */
     private boolean isZoneActive(int zoneId) {
         return activeZones.contains(zoneId);
     }
 
+    /**
+     * Checks whether a fire event for the given zone is already waiting
+     * in the pending event queue.
+     *
+     * @param zoneId the zone to check
+     * @return true if a pending event exists for the zone
+     */
     private boolean isZonePending(int zoneId) {
         for (FireEvent event : pendingEvents) {
             if (event.getZoneId() == zoneId) {
@@ -608,6 +754,14 @@ public class SchedulerSubsystem implements Runnable {
         return false;
     }
 
+    /**
+     * Determines whether two fire events represent the exact same incident.
+     * Compares zone, timestamp, event type, severity, fault type, and fault delay.
+     *
+     * @param a first fire event
+     * @param b second fire event
+     * @return true if both events describe the same incident
+     */
     private boolean sameIncident(FireEvent a, FireEvent b) {
         return a.getZoneId() == b.getZoneId()
                 && a.getTimestamp().equals(b.getTimestamp())
@@ -617,6 +771,13 @@ public class SchedulerSubsystem implements Runnable {
                 && a.getFaultDelaySeconds() == b.getFaultDelaySeconds();
     }
 
+    /**
+     * Checks whether an incoming fire event is a duplicate of an event already
+     * pending or currently assigned to a drone. Prevents redundant dispatching.
+     *
+     * @param incoming the new fire event
+     * @return true if the event is already known
+     */
     private boolean isDuplicateIncident(FireEvent incoming) {
         for (FireEvent event : pendingEvents) {
             if (sameIncident(event, incoming)) {
@@ -633,6 +794,13 @@ public class SchedulerSubsystem implements Runnable {
         return false;
     }
 
+    /**
+     * Sends a FIRE_EVENT acknowledgment back to the fire‑incident subsystem.
+     * Used to confirm receipt of a fire event and prevent retransmission.
+     *
+     * @param address the sender's IP address
+     * @param port    the sender's UDP port
+     */
     private void sendAckToFireIncident(InetAddress address, int port) {
         Message ack = new Message(MessageType.FIRE_EVENT, 0, null);
         byte[] ackBytes = ack.toBytes();
@@ -653,6 +821,12 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Sends a FIRE_OUT notification to the fire‑incident subsystem and updates
+     * the GUI. Called when the last drone assigned to a zone completes its task.
+     *
+     * @param event the fire event that has been extinguished
+     */
     private void notifyFireOut(FireEvent event) {
         Message out = Message.fireOut(event);
         byte[] bytes = out.toBytes();
@@ -673,6 +847,11 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Returns whether any drone is currently busy (assigned to an event).
+     *
+     * @return true if at least one drone is busy
+     */
     private boolean hasBusyDrones() {
         for (DroneInfo drone : drones.values()) {
             if (drone.busy) {
@@ -682,6 +861,12 @@ public class SchedulerSubsystem implements Runnable {
         return false;
     }
 
+    /**
+     * Returns whether any drone is available for dispatch. A dispatchable drone
+     * must be idle, online, and not faulted.
+     *
+     * @return true if at least one drone can be dispatched
+     */
     private boolean hasDispatchableDrone() {
         for (DroneInfo drone : drones.values()) {
             if (drone.isDispatchable()) {
@@ -691,10 +876,18 @@ public class SchedulerSubsystem implements Runnable {
         return false;
     }
 
+    /**
+     * Returns whether there are any fire events waiting to be dispatched.
+     *
+     * @return true if pendingEvents is non‑empty
+     */
     private boolean hasPendingEvents() {
         return !pendingEvents.isEmpty();
     }
 
+    /**
+     * Updates the scheduler's high‑level state based on current conditions:
+     * */
     private void refreshSchedulerState() {
         SchedulerState oldState = schedulerState;
 
@@ -716,6 +909,12 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Applies a state‑machine transition based on the given scheduler event.
+     * Logs the transition when debug output is enabled.
+     *
+     * @param event the scheduler event that triggered the transition
+     */
     private void transition(SchedulerEvent event) {
         SchedulerState before = schedulerState;
         schedulerState = schedulerState.next(event);
@@ -729,12 +928,24 @@ public class SchedulerSubsystem implements Runnable {
         }
     }
 
+    /**
+     * Forwards a message to the GUI on the Swing event thread. Safe for use
+     * from the scheduler's background thread.
+     *
+     * @param msg the message to deliver to the GUI
+     */
     private void sendToGUI(Message msg) {
         if (gui != null) {
             SwingUtilities.invokeLater(() -> gui.handleIncomingMessage(msg));
         }
     }
 
+    /**
+     * Entry point for running the scheduler standalone. Creates a scheduler
+     * thread and starts it with no predefined system counts.
+     *
+     * @param args ignored command‑line arguments
+     */
     public static void main(String[] args) {
         SystemCounts counts = null;
         Thread scheduler = new Thread(new SchedulerSubsystem(counts));
