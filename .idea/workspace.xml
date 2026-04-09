@@ -7,11 +7,7 @@
     <list default="true" id="260e008f-10f7-4a12-9fbd-868217b302ed" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" beforeDir="false" afterPath="$PROJECT_DIR$/SYSC3303_PROJECT.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/metrics_report.txt" beforeDir="false" afterPath="$PROJECT_DIR$/metrics_report.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/DroneSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/GUI.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/GUI.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SchedulerSubsystem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/SubSystems/SimulationMetrics.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/SubSystems/SimulationMetrics.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -98,7 +94,7 @@
       <recent name="C:\FinalSemesterCarleton\sysc3303_FinalProject\src" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.Main">
+  <component name="RunManager" selected="JUnit.All in SYSC3303_PROJECT">
     <configuration name="FireIncidentSubsystem" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="SubSystems.FireIncidentSubsystem" />
       <module name="SYSC3303_PROJECT" />
@@ -115,6 +111,14 @@
     <configuration name="Main" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Main" />
       <module name="SYSC3303_PROJECT" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="All in SYSC3303_PROJECT" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="SYSC3303_PROJECT" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="TEST_OBJECT" value="package" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -149,35 +153,20 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="SchedulerSubsystemTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
-      <module name="SYSC3303_PROJECT" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="SubSystems.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <option name="PACKAGE_NAME" value="SubSystems" />
-      <option name="MAIN_CLASS_NAME" value="SubSystems.SchedulerSubsystemTest" />
-      <option name="TEST_OBJECT" value="class" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
     <list>
       <item itemvalue="Application.FireIncidentSubsystem" />
       <item itemvalue="Application.Main" />
+      <item itemvalue="JUnit.All in SYSC3303_PROJECT" />
       <item itemvalue="JUnit.DroneSubsystemTest" />
       <item itemvalue="JUnit.Iteration4IntegrationTest" />
-      <item itemvalue="JUnit.SchedulerSubsystemTest" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="JUnit.All in SYSC3303_PROJECT" />
         <item itemvalue="Application.Main" />
         <item itemvalue="Application.FireIncidentSubsystem" />
         <item itemvalue="JUnit.DroneSubsystemTest" />
         <item itemvalue="JUnit.Iteration4IntegrationTest" />
-        <item itemvalue="JUnit.SchedulerSubsystemTest" />
       </list>
     </recent_temporary>
   </component>

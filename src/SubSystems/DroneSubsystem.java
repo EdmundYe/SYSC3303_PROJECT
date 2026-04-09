@@ -100,6 +100,9 @@ public class DroneSubsystem implements Runnable {
             System.out.println("[DRONE " + droneId + "] Drone subsystem stopped");
     }
 
+    /*
+        Drone sends packet to scheduler to poll next task
+     */
     private void sendPoll() throws IOException {
         if (state == DroneState.OFFLINE) return;
 
@@ -112,6 +115,9 @@ public class DroneSubsystem implements Runnable {
             System.out.println("[DRONE " + droneId + "] Polling scheduler for tasks");
     }
 
+    /*
+        Drone sending status updates to scheduler
+     */
     private void sendStatus(DroneState state, Integer zoneId, Integer remainingAgent) throws IOException {
         DroneStatus status = new DroneStatus(droneId, state, zoneId, remainingAgent, batteryLevel);
         Message msg = Message.droneStatus(droneId, status);
@@ -143,6 +149,9 @@ public class DroneSubsystem implements Runnable {
                     + String.format("%.0f", posX) + "," + String.format("%.0f", posY) + "): " + status);
     }
 
+    /*
+        Drone done status update to scheduler
+     */
     private void sendDone() throws IOException {
         DroneStatus status = new DroneStatus(
                 droneId,
@@ -162,6 +171,9 @@ public class DroneSubsystem implements Runnable {
         socket.send(packet);
     }
 
+    /*
+        Drone sends fault status to scheduler
+     */
     private void sendFault(FaultType faultType, int zoneId, boolean recoverable) throws IOException {
         DroneFault fault = new DroneFault(droneId, zoneId, faultType, recoverable);
         Message msg = Message.droneFault(droneId, fault);
@@ -176,6 +188,10 @@ public class DroneSubsystem implements Runnable {
             System.out.println("[DRONE " + droneId + "] Reported fault: " + fault);
     }
 
+    /*
+        method to help drone receive messages from scheduler
+        depending on message type, perform action accordingly
+     */
     private void handleMessage(Message msg) throws InterruptedException, IOException {
         switch (msg.getType()) {
             case DRONE_TASK -> {
@@ -203,6 +219,9 @@ public class DroneSubsystem implements Runnable {
         }
     }
 
+    /*
+        Drone simulation method with calculations using values from iteration 0
+     */
     private boolean executeCommand(DroneCommand command) throws InterruptedException, IOException {
         currentZoneId = command.get_zone_id();
         int amountUsed = command.getAgentAmount();
@@ -282,6 +301,9 @@ public class DroneSubsystem implements Runnable {
         return true;
     }
 
+    /*
+        drone movement helper
+     */
     private boolean travelToZone(int zoneId, long totalMs, DroneCommand command)
             throws InterruptedException, IOException {
 
@@ -337,11 +359,17 @@ public class DroneSubsystem implements Runnable {
         return true;
     }
 
+    /*
+        RTB method when drone finishes
+     */
     private void travelToBase(long totalMs, DroneState reportState) throws InterruptedException, IOException {
         int[] src = currentZoneId != null ? ZoneMap.get(currentZoneId) : new int[]{0, 0};
         travelToBaseFrom(src[0], src[1], totalMs, reportState);
     }
 
+    /*
+        RTB calculation helper method
+     */
     private void travelToBaseFrom(double startX,
                                   double startY,
                                   long totalMs,
@@ -361,11 +389,17 @@ public class DroneSubsystem implements Runnable {
         }
     }
 
+    /*
+        drop time calculation
+     */
     private long computeDropTimeMs(int litresToDrop) {
         double seconds = litresToDrop / WATER_DROP_RATE;
         return (long) Math.ceil((seconds * 1000) / SIMULATION_SPEED);
     }
 
+    /*
+        travel time calculation
+     */
     private long computeTravelTimeMs(double distanceMeters) {
         if (distanceMeters <= 0) return 1;
 
@@ -375,6 +409,9 @@ public class DroneSubsystem implements Runnable {
         return Math.max(1, (long) Math.ceil((timeAccelerate + timeDecelerate) * 1000 / SIMULATION_SPEED));
     }
 
+    /*
+        state transition helper method
+     */
     private void transition(DroneEvent event) {
         DroneState before = state;
         state = state.next(event);
